@@ -46,8 +46,7 @@ export default function AdminPage() {
   };
 
   const copyToClipboard = (token: string, id: string) => {
-    const url = `${window.location.origin}/?token=${token}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(token);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
