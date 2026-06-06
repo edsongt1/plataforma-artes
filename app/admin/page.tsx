@@ -12,6 +12,7 @@ export default function AdminPage() {
     categories, addCategory, updateCategory, deleteCategory,
     artPacks, addArtPack, updateArtPack, deleteArtPack,
     clients, addClient, deleteClient, toggleClientStatus,
+    uploadMockup,
     isLoaded 
   } = useStore();
 
@@ -56,27 +57,17 @@ export default function AdminPage() {
     if (!file) return;
 
     setIsUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
 
     try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        if (packForm.mockupUrls.length >= 10) {
-          alert("Máximo de 10 fotos atingido.");
-          return;
-        }
-        setPackForm({ ...packForm, mockupUrls: [...packForm.mockupUrls, data.url] });
-      } else {
-        alert("Erro no upload: " + data.message);
+      const publicUrl = await uploadMockup(file);
+      
+      if (packForm.mockupUrls.length >= 10) {
+        alert("Máximo de 10 fotos atingido.");
+        return;
       }
-    } catch (error) {
-      alert("Erro ao enviar imagem para o servidor.");
+      setPackForm({ ...packForm, mockupUrls: [...packForm.mockupUrls, publicUrl] });
+    } catch (error: any) {
+      alert("Erro no upload: " + error.message);
     } finally {
       setIsUploading(false);
     }

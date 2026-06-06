@@ -160,6 +160,30 @@ export function useStore() {
     addClient,
     updateClient,
     deleteClient,
-    toggleClientStatus
+    toggleClientStatus,
+    uploadMockup
   };
+}
+
+async function uploadMockup(file: File) {
+  try {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { data, error } = await supabase.storage
+      .from('mockups')
+      .upload(filePath, file);
+
+    if (error) throw error;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('mockups')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  } catch (error: any) {
+    console.error('Erro no upload para o Supabase:', error.message);
+    throw error;
+  }
 }
