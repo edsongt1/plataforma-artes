@@ -5,13 +5,14 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import Carousel from "@/components/Carousel";
-import { Search, LogOut, ExternalLink, Package } from "lucide-react";
+import { Search, LogOut, ExternalLink, Package, Maximize2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function GalleryPage() {
   const { categories, artPacks, isLoaded } = useStore();
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const router = useRouter();
 
   const handleLogout = () => {
@@ -105,9 +106,22 @@ export default function GalleryPage() {
                 className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-col h-full"
               >
                 {/* Mockup Carousel */}
-                <div className="aspect-[4/3] relative bg-gray-200 overflow-hidden">
+                <div className="aspect-[4/3] relative bg-gray-200 overflow-hidden group/carousel">
                   {pack.mockupUrls && pack.mockupUrls.length > 0 ? (
-                    <Carousel images={pack.mockupUrls} duration={pack.duration} />
+                    <>
+                      <Carousel images={pack.mockupUrls} duration={pack.duration} />
+                      <button 
+                        onClick={() => {
+                          // Pega a imagem atual do carrossel (simplificado para a primeira ou lógica de índice se necessário)
+                          // Para ser exato, vamos permitir clicar para abrir o modal
+                          setSelectedImage(pack.mockupUrls[0]);
+                        }}
+                        className="absolute top-2 right-2 p-2 bg-white/80 hover:bg-white rounded-full shadow-md opacity-0 group-hover/carousel:opacity-100 transition-opacity z-10 text-indigo-600"
+                        title="Ver maior"
+                      >
+                        <Maximize2 size={18} />
+                      </button>
+                    </>
                   ) : (
                     <div className="flex items-center justify-center h-full text-gray-400">
                       Sem Mockup
@@ -149,6 +163,31 @@ export default function GalleryPage() {
           </div>
         )}
       </main>
+
+      {/* Image Lightbox/Modal */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-in fade-in duration-200"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button 
+            className="absolute top-6 right-6 text-white hover:text-gray-300 transition-colors"
+            onClick={() => setSelectedImage(null)}
+          >
+            <X size={32} />
+          </button>
+          <div 
+            className="relative max-w-5xl w-full max-h-[90vh] flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={selectedImage} 
+              alt="Visualização ampliada" 
+              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

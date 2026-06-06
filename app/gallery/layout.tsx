@@ -29,11 +29,20 @@ export default function GalleryLayout({
       // Valida o token no Supabase em tempo real
       const { data, error } = await supabase
         .from("clients")
-        .select("active")
+        .select("active, end_date")
         .eq("token", token)
         .single();
 
-      if (error || !data || !data.active) {
+      if (error || !data) {
+        localStorage.removeItem("auth_token");
+        router.push("/");
+        return;
+      }
+
+      // Verifica se a assinatura expirou
+      const isExpired = data.end_date ? new Date(data.end_date) < new Date() : false;
+
+      if (!data.active || isExpired) {
         localStorage.removeItem("auth_token");
         router.push("/");
         return;

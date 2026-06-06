@@ -15,8 +15,11 @@ export interface ArtPack {
 export interface Client {
   id: string;
   name: string;
+  phone?: string;
   token: string;
   active: boolean;
+  startDate?: string;
+  endDate?: string;
   createdAt: string;
 }
 

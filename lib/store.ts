@@ -33,7 +33,19 @@ export function useStore() {
         }));
         setArtPacks(mappedPacks);
       }
-      if (cls) setClients(cls);
+      if (cls) {
+        const mappedClients = cls.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          token: c.token,
+          active: c.active,
+          startDate: c.start_date,
+          endDate: c.end_date,
+          createdAt: c.created_at
+        }));
+        setClients(mappedClients);
+      }
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
     } finally {
@@ -101,14 +113,25 @@ export function useStore() {
   };
 
   // Client CRUD
-  const addClient = async (name: string) => {
+  const addClient = async (name: string, phone: string, startDate: string, durationMonths: number) => {
     try {
       const token = Math.random().toString(36).substring(2, 10).toUpperCase();
-      console.log('Tentando adicionar cliente:', { name, token });
+      
+      // Calcular data de término
+      const start = new Date(startDate);
+      const end = new Date(startDate);
+      end.setMonth(start.getMonth() + durationMonths);
       
       const { data, error } = await supabase
         .from('clients')
-        .insert([{ name, token, active: true }])
+        .insert([{ 
+          name, 
+          phone,
+          token, 
+          active: true,
+          start_date: startDate,
+          end_date: end.toISOString()
+        }])
         .select();
       
       if (error) {
@@ -146,6 +169,31 @@ export function useStore() {
     }
   };
 
+  const renewSubscription = async (id: string, months: number) => {
+    try {
+      const client = clients.find(c => c.id === id);
+      if (!client) return;
+
+      const currentEnd = client.endDate ? new Date(client.endDate) : new Date();
+      const newEnd = new Date(currentEnd > new Date() ? currentEnd : new Date());
+      newEnd.setMonth(newEnd.getMonth() + months);
+
+      const { error } = await supabase
+        .from('clients')
+        .update({ 
+          end_date: newEnd.toISOString(),
+          active: true 
+        })
+        .eq('id', id);
+
+      if (!error) {
+        setClients(clients.map(c => c.id === id ? { ...c, endDate: newEnd.toISOString(), active: true } : c));
+      }
+    } catch (error) {
+      console.error('Erro ao renovar assinatura:', error);
+    }
+  };
+
   return {
     categories,
     artPacks,
@@ -161,7 +209,8 @@ export function useStore() {
     updateClient,
     deleteClient,
     toggleClientStatus,
-    uploadMockup
+    uploadMockup,
+    renewSubscription
   };
 }
 

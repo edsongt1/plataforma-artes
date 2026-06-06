@@ -4,14 +4,14 @@ export const dynamic = "force-dynamic";
 
 import { useState, useRef } from "react";
 import { useStore } from "@/lib/store";
-import { Plus, Edit2, Trash2, Layout, Image as ImageIcon, ExternalLink, X, LogOut, Upload, Users, Copy, Check, Power, PowerOff } from "lucide-react";
+import { Plus, Edit2, Trash2, Layout, Image as ImageIcon, ExternalLink, X, LogOut, Upload, Users, Copy, Check, Power, PowerOff, Calendar, Phone, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function AdminPage() {
   const { 
     categories, addCategory, updateCategory, deleteCategory,
     artPacks, addArtPack, updateArtPack, deleteArtPack,
-    clients, addClient, deleteClient, toggleClientStatus,
+    clients, addClient, deleteClient, toggleClientStatus, renewSubscription,
     uploadMockup,
     isLoaded 
   } = useStore();
@@ -37,7 +37,12 @@ export default function AdminPage() {
     duration: 3 
   });
   const [catForm, setCatForm] = useState({ name: "" });
-  const [clientForm, setClientForm] = useState({ name: "" });
+  const [clientForm, setClientForm] = useState({ 
+    name: "", 
+    phone: "", 
+    startDate: new Date().toISOString().split('T')[0],
+    duration: 1 // 1 mês por padrão
+  });
 
   if (!isLoaded) return <div className="p-8 text-center">Carregando painel...</div>;
 
@@ -115,10 +120,20 @@ export default function AdminPage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const result = await addClient(clientForm.name);
+      const result = await addClient(
+        clientForm.name, 
+        clientForm.phone, 
+        clientForm.startDate, 
+        clientForm.duration
+      );
       if (result) {
         setIsClientModalOpen(false);
-        setClientForm({ name: "" });
+        setClientForm({ 
+          name: "", 
+          phone: "", 
+          startDate: new Date().toISOString().split('T')[0], 
+          duration: 1 
+        });
       }
     } finally {
       setIsSaving(false);
@@ -259,44 +274,70 @@ export default function AdminPage() {
             <table className="w-full text-left">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">Nome do Cliente</th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">Cliente</th>
                   <th className="px-6 py-4 text-sm font-semibold text-gray-700">Status</th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">Vencimento</th>
                   <th className="px-6 py-4 text-sm font-semibold text-gray-700">Token</th>
                   <th className="px-6 py-4 text-sm font-semibold text-gray-700 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y text-black">
-                {clients.map((client) => (
-                  <tr key={client.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-900">{client.name}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${client.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                        {client.active ? "Ativo" : "Inativo"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-mono text-sm">{client.token}</td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button 
-                          onClick={() => copyToClipboard(client.token, client.id)} 
-                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded flex items-center gap-1 text-xs"
-                          title="Copiar link de acesso"
-                        >
-                          {copiedId === client.id ? <Check size={16} /> : <Copy size={16} />}
-                          {copiedId === client.id ? "Copiado!" : "Link"}
-                        </button>
-                        <button 
-                          onClick={() => toggleClientStatus(client.id)} 
-                          className={`p-2 rounded ${client.active ? "text-orange-600 hover:bg-orange-50" : "text-green-600 hover:bg-green-50"}`}
-                          title={client.active ? "Desativar" : "Ativar"}
-                        >
-                          {client.active ? <PowerOff size={18} /> : <Power size={18} />}
-                        </button>
-                        <button onClick={() => deleteClient(client.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 size={18} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {clients.map((client) => {
+                  const isExpired = client.endDate ? new Date(client.endDate) < new Date() : false;
+                  return (
+                    <tr key={client.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900">{client.name}</div>
+                        <div className="text-xs text-gray-500">{client.phone || "Sem telefone"}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          isExpired 
+                            ? "bg-red-100 text-red-700" 
+                            : client.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                        }`}>
+                          {isExpired ? "Expirado" : client.active ? "Ativo" : "Inativo"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {client.endDate ? new Date(client.endDate).toLocaleDateString('pt-BR') : "---"}
+                      </td>
+                      <td className="px-6 py-4 font-mono text-sm">{client.token}</td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => renewSubscription(client.id, 1)}
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded"
+                            title="Renovar 1 mês"
+                          >
+                            <RefreshCw size={18} />
+                          </button>
+                          <button 
+                            onClick={() => copyToClipboard(client.token, client.id)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                            title="Copiar Token"
+                          >
+                            {copiedId === client.id ? <Check size={18} className="text-green-600" /> : <Copy size={18} />}
+                          </button>
+                          <button 
+                            onClick={() => toggleClientStatus(client.id)}
+                            className={`p-2 rounded ${client.active ? "text-amber-600 hover:bg-amber-50" : "text-green-600 hover:bg-green-50"}`}
+                            title={client.active ? "Desativar" : "Ativar"}
+                          >
+                            {client.active ? <PowerOff size={18} /> : <Power size={18} />}
+                          </button>
+                          <button 
+                            onClick={() => deleteClient(client.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded"
+                            title="Excluir"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -438,25 +479,95 @@ export default function AdminPage() {
       {/* Client Modal */}
       {isClientModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 text-black">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Novo Cliente</h2>
-              <button onClick={() => setIsClientModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
-            </div>
+          <div className="bg-white p-8 rounded-2xl w-full max-w-md shadow-xl relative animate-in zoom-in duration-200">
+            <button 
+              onClick={() => setIsClientModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <Users className="text-indigo-600" />
+              Novo Cliente
+            </h2>
             <form onSubmit={handleSaveClient} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Nome do Cliente</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Cliente</label>
                 <input
+                  type="text"
                   required
                   value={clientForm.name}
-                  onChange={e => setClientForm({name: e.target.value})}
-                  className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                  onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-black"
                   placeholder="Ex: João Silva"
                 />
               </div>
-              <p className="text-xs text-gray-500">
-                Ao salvar, um link de acesso único será gerado automaticamente para este cliente.
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                  <Phone size={16} /> WhatsApp / Telefone
+                </label>
+                <input
+                  type="text"
+                  value={clientForm.phone}
+                  onChange={(e) => setClientForm({ ...clientForm, phone: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-black"
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                  <Calendar size={16} /> Data de Início
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={clientForm.startDate}
+                  onChange={(e) => setClientForm({ ...clientForm, startDate: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Duração do Plano</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setClientForm({ ...clientForm, duration: 1 })}
+                    className={`py-2 px-4 rounded-lg border font-medium transition-all ${
+                      clientForm.duration === 1 
+                        ? "bg-indigo-600 text-white border-indigo-600" 
+                        : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    1 Mês
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClientForm({ ...clientForm, duration: 12 })}
+                    className={`py-2 px-4 rounded-lg border font-medium transition-all ${
+                      clientForm.duration === 12 
+                        ? "bg-indigo-600 text-white border-indigo-600" 
+                        : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    1 Ano
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
+                Vencimento previsto: <span className="font-bold">
+                  {(() => {
+                    const start = new Date(clientForm.startDate);
+                    const end = new Date(clientForm.startDate);
+                    end.setMonth(start.getMonth() + clientForm.duration);
+                    return end.toLocaleDateString('pt-BR');
+                  })()}
+                </span>
               </p>
+
               <button
                 type="submit"
                 disabled={isSaving}
