@@ -26,7 +26,6 @@ export function useStore() {
 
       if (cats) setCategories(cats);
       if (packs) {
-        // Mapeia os nomes do banco (snake_case) para o código (camelCase)
         const mappedPacks = packs.map((p) => ({
           id: p.id,
           title: p.title,
@@ -75,7 +74,6 @@ export function useStore() {
     }
   };
 
-  // Category CRUD
   const addCategory = async (name: string) => {
     const { data, error } = await supabase.from('categories').insert([{ name }]).select();
     if (error) console.error('Erro ao adicionar categoria:', error);
@@ -97,7 +95,6 @@ export function useStore() {
     }
   };
 
-  // Art Pack CRUD
   const addArtPack = async (pack: Omit<ArtPack, 'id'>) => {
     const { data, error } = await supabase.from('art_packs').insert([{
       title: pack.title,
@@ -140,12 +137,9 @@ export function useStore() {
     if (!error) setArtPacks(artPacks.filter(p => p.id !== id));
   };
 
-  // Client CRUD
   const addClient = async (name: string, phone: string, startDate: string, durationMonths: number) => {
     try {
       const token = Math.random().toString(36).substring(2, 10).toUpperCase();
-      
-      // Calcular data de término
       const start = new Date(startDate);
       const end = new Date(startDate);
       end.setMonth(start.getMonth() + durationMonths);
@@ -226,7 +220,6 @@ export function useStore() {
     }
   };
 
-  // Promotion CRUD
   const addPromotion = async (promotion: Omit<Promotion, 'id'>) => {
     const { data, error } = await supabase.from('promotions').insert([{
       title: promotion.title,
@@ -266,14 +259,12 @@ export function useStore() {
     if (!error) setPromotions(promotions.filter(p => p.id !== id));
   };
 
-  // Site Settings CRUD
   const updateSiteSettings = async (updates: Partial<SiteSettings>) => {
     const updateData: any = {};
     if (updates.logoUrl !== undefined) updateData.logo_url = updates.logoUrl;
     if (updates.whatsappLink !== undefined) updateData.whatsapp_link = updates.whatsappLink;
     if (updates.adminPassword !== undefined) updateData.admin_password = updates.adminPassword;
 
-    // Try to update, if no settings exist yet, insert
     const { data: existing, error: fetchError } = await supabase.from('site_settings').select('*').limit(1).maybeSingle();
     if (fetchError) console.error('Erro ao buscar configurações:', fetchError);
     
@@ -297,7 +288,7 @@ export function useStore() {
     }
   };
 
-   return {
+  return {
     categories,
     artPacks,
     clients,
