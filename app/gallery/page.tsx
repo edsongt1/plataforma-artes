@@ -5,11 +5,11 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import Carousel from "@/components/Carousel";
-import { Search, LogOut, ExternalLink, Package, Maximize2, X } from "lucide-react";
+import { Search, LogOut, ExternalLink, Package, Maximize2, X, MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function GalleryPage() {
-  const { categories, artPacks, isLoaded } = useStore();
+  const { categories, artPacks, isLoaded, promotions, siteSettings } = useStore();
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -41,9 +41,13 @@ export default function GalleryPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="bg-indigo-600 p-2 rounded-lg text-white">
-                <Package size={24} />
-              </div>
+              {siteSettings?.logoUrl ? (
+                <img src={siteSettings.logoUrl} alt="Logo" className="h-12 object-contain" />
+              ) : (
+                <div className="bg-indigo-600 p-2 rounded-lg text-white">
+                  <Package size={24} />
+                </div>
+              )}
               <h1 className="text-xl font-bold text-gray-900">Minhas Artes</h1>
             </div>
 
@@ -58,6 +62,17 @@ export default function GalleryPage() {
               />
             </div>
 
+            {siteSettings?.whatsappLink && (
+              <a
+                href={siteSettings.whatsappLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+              >
+                <MessageCircle size={18} />
+                Preciso de Ajuda
+              </a>
+            )}
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -69,100 +84,179 @@ export default function GalleryPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Categories */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          <button
-            onClick={() => setSelectedCategory("all")}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-              selectedCategory === "all"
-                ? "bg-indigo-600 text-white shadow-md"
-                : "bg-white text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            Todos
-          </button>
-          {categories.map((category) => (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-6">
+        {/* Left Sidebar - Promotions */}
+        {promotions.length > 0 && (
+          <aside className="hidden lg:block w-64 flex-shrink-0">
+            <div className="sticky top-24 space-y-4">
+              <h3 className="text-lg font-bold text-gray-900">Promoções Exclusivas</h3>
+              {promotions.map((promo) => (
+                <div key={promo.id} className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <img src={promo.imageUrl} alt={promo.title} className="w-full h-32 object-cover" />
+                  <div className="p-3">
+                    <h4 className="font-bold text-gray-900 text-sm">{promo.title}</h4>
+                    <p className="text-indigo-600 font-semibold mt-1">{promo.price}</p>
+                    <a
+                      href={promo.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 block w-full text-center px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                    >
+                      Acessar
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </aside>
+        )}
+
+        {/* Main Content */}
+        <main className="flex-1">
+          {/* Categories */}
+          <div className="flex flex-wrap gap-2 mb-8">
             <button
-              key={category.id}
-              onClick={() => setSelectedCategory(category.id)}
+              onClick={() => setSelectedCategory("all")}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                selectedCategory === category.id
+                selectedCategory === "all"
                   ? "bg-indigo-600 text-white shadow-md"
                   : "bg-white text-gray-600 hover:bg-gray-100"
               }`}
             >
-              {category.name}
+              Todos
             </button>
-          ))}
-        </div>
-
-        {/* Art Packs Grid */}
-        {filteredPacks.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredPacks.map((pack) => (
-              <div
-                key={pack.id}
-                className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-col h-full"
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  selectedCategory === category.id
+                    ? "bg-indigo-600 text-white shadow-md"
+                    : "bg-white text-gray-600 hover:bg-gray-100"
+                }`}
               >
-                {/* Mockup Carousel */}
-                <div className="aspect-[4/3] relative bg-gray-200 overflow-hidden group/carousel">
-                  {pack.mockupUrls && pack.mockupUrls.length > 0 ? (
-                    <>
-                      <Carousel images={pack.mockupUrls} duration={pack.duration} />
-                      <button 
-                        onClick={() => {
-                          // Pega a imagem atual do carrossel (simplificado para a primeira ou lógica de índice se necessário)
-                          // Para ser exato, vamos permitir clicar para abrir o modal
-                          setSelectedImage(pack.mockupUrls[0]);
-                        }}
-                        className="absolute top-2 right-2 p-2 bg-white/80 hover:bg-white rounded-full shadow-md opacity-0 group-hover/carousel:opacity-100 transition-opacity z-10 text-indigo-600"
-                        title="Ver maior"
-                      >
-                        <Maximize2 size={18} />
-                      </button>
-                    </>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400">
-                      Sem Mockup
-                    </div>
-                  )}
-                </div>
+                {category.name}
+              </button>
+            ))}
+          </div>
 
-                {/* Content */}
-                <div className="p-5 flex flex-col flex-grow">
-                  <h3 className="font-bold text-gray-900 mb-2 line-clamp-2">{pack.title}</h3>
-                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
-                    <span className="px-2 py-1 bg-gray-100 rounded-md">
-                      {categories.find((c) => c.id === pack.categoryId)?.name || "Geral"}
-                    </span>
+          {/* Art Packs Grid */}
+          {filteredPacks.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredPacks.map((pack) => (
+                <div
+                  key={pack.id}
+                  className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-col h-full"
+                >
+                  {/* Mockup Carousel */}
+                  <div className="aspect-[4/3] relative bg-gray-200 overflow-hidden group/carousel">
+                    {pack.mockupUrls && pack.mockupUrls.length > 0 ? (
+                      <>
+                        <Carousel images={pack.mockupUrls} duration={pack.duration} />
+                        <button 
+                          onClick={() => {
+                            setSelectedImage(pack.mockupUrls[0]);
+                          }}
+                          className="absolute top-2 right-2 p-2 bg-white/80 hover:bg-white rounded-full shadow-md opacity-0 group-hover/carousel:opacity-100 transition-opacity z-10 text-indigo-600"
+                          title="Ver maior"
+                        >
+                          <Maximize2 size={18} />
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-400">
+                        Sem Mockup
+                      </div>
+                    )}
                   </div>
-                  
-                  <div className="mt-auto">
+
+                  {/* Content */}
+                  <div className="p-5 flex flex-col flex-grow">
+                    <h3 className="font-bold text-gray-900 mb-2 line-clamp-2">{pack.title}</h3>
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
+                      <span className="px-2 py-1 bg-gray-100 rounded-md">
+                        {categories.find((c) => c.id === pack.categoryId)?.name || "Geral"}
+                      </span>
+                    </div>
+                    
+                    <div className="mt-auto">
+                      <a
+                        href={pack.downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors group"
+                      >
+                        <span>Baixar Pack</span>
+                        <ExternalLink size={16} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20 bg-white rounded-3xl shadow-sm border border-dashed border-gray-200">
+              <div className="mx-auto w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 mb-4">
+                <Search size={32} />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">Nenhum pack encontrado</h3>
+              <p className="text-gray-500">Tente ajustar seus filtros ou busca.</p>
+            </div>
+          )}
+        </main>
+
+        {/* Right Sidebar - Promotions */}
+        {promotions.length > 0 && (
+          <aside className="hidden lg:block w-64 flex-shrink-0">
+            <div className="sticky top-24 space-y-4">
+              <h3 className="text-lg font-bold text-gray-900">Ofertas Especiais</h3>
+              {promotions.map((promo) => (
+                <div key={`right-${promo.id}`} className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <img src={promo.imageUrl} alt={promo.title} className="w-full h-32 object-cover" />
+                  <div className="p-3">
+                    <h4 className="font-bold text-gray-900 text-sm">{promo.title}</h4>
+                    <p className="text-indigo-600 font-semibold mt-1">{promo.price}</p>
                     <a
-                      href={pack.downloadUrl}
+                      href={promo.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors group"
+                      className="mt-2 block w-full text-center px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
                     >
-                      <span>Baixar Pack</span>
-                      <ExternalLink size={16} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                      Acessar
                     </a>
                   </div>
+                </div>
+              ))}
+            </div>
+          </aside>
+        )}
+      </div>
+
+      {/* Mobile Promotions (only show if there are promotions) */}
+      {promotions.length > 0 && (
+        <div className="lg:hidden px-4 sm:px-6 pb-8">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Promoções Exclusivas</h3>
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {promotions.map((promo) => (
+              <div key={`mobile-${promo.id}`} className="bg-white rounded-xl shadow-sm border overflow-hidden flex-shrink-0 w-64">
+                <img src={promo.imageUrl} alt={promo.title} className="w-full h-32 object-cover" />
+                <div className="p-3">
+                  <h4 className="font-bold text-gray-900 text-sm">{promo.title}</h4>
+                  <p className="text-indigo-600 font-semibold mt-1">{promo.price}</p>
+                  <a
+                    href={promo.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 block w-full text-center px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                  >
+                    Acessar
+                  </a>
                 </div>
               </div>
             ))}
           </div>
-        ) : (
-          <div className="text-center py-20 bg-white rounded-3xl shadow-sm border border-dashed border-gray-200">
-            <div className="mx-auto w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 mb-4">
-              <Search size={32} />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900">Nenhum pack encontrado</h3>
-            <p className="text-gray-500">Tente ajustar seus filtros ou busca.</p>
-          </div>
-        )}
-      </main>
+        </div>
+      )}
 
       {/* Image Lightbox/Modal */}
       {selectedImage && (

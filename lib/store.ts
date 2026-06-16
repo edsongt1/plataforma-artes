@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Category, ArtPack, Client } from './data';
+import { Category, ArtPack, Client, Promotion, SiteSettings } from './data';
 import { supabase } from './supabase';
 
 export function useStore() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [artPacks, setArtPacks] = useState<ArtPack[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -19,6 +21,8 @@ export function useStore() {
       const { data: cats } = await supabase.from('categories').select('*').order('name');
       const { data: packs } = await supabase.from('art_packs').select('*').order('created_at', { ascending: false });
       const { data: cls } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
+      const { data: promos } = await supabase.from('promotions').select('*').order('created_at', { ascending: false });
+      const { data: settings } = await supabase.from('site_settings').select('*').single();
 
       if (cats) setCategories(cats);
       if (packs) {
@@ -45,6 +49,24 @@ export function useStore() {
           createdAt: c.created_at
         }));
         setClients(mappedClients);
+      }
+      if (promos) {
+        const mappedPromos = promos.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          price: p.price,
+          imageUrl: p.image_url,
+          link: p.link
+        }));
+        setPromotions(mappedPromos);
+      }
+      if (settings) {
+        setSiteSettings({
+          id: settings.id,
+          logoUrl: settings.logo_url,
+          whatsappLink: settings.whatsapp_link,
+          adminPassword: settings.admin_password
+        });
       }
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
@@ -194,9 +216,74 @@ export function useStore() {
     }
   };
 
+  // Promotion CRUD
+  const addPromotion = async (promotion: Omit<Promotion, 'id'>) => {
+    const { data, error } = await supabase.from('promotions').insert([{
+      title: promotion.title,
+      price: promotion.price,
+      image_url: promotion.imageUrl,
+      link: promotion.link
+    }]).select();
+
+    if (data) {
+      const newPromo = {
+        id: data[0].id,
+        title: data[0].title,
+        price: data[0].price,
+        imageUrl: data[0].image_url,
+        link: data[0].link
+      };
+      setPromotions([newPromo, ...promotions]);
+    }
+  };
+
+  const updatePromotion = async (id: string, promotion: Partial<Promotion>) => {
+    const updateData: any = {};
+    if (promotion.title) updateData.title = promotion.title;
+    if (promotion.price) updateData.price = promotion.price;
+    if (promotion.imageUrl) updateData.image_url = promotion.imageUrl;
+    if (promotion.link) updateData.link = promotion.link;
+
+    const { error } = await supabase.from('promotions').update(updateData).eq('id', id);
+    if (!error) setPromotions(promotions.map(p => p.id === id ? { ...p, ...promotion } : p));
+  };
+
+  const deletePromotion = async (id: string) => {
+    const { error } = await supabase.from('promotions').delete().eq('id', id);
+    if (!error) setPromotions(promotions.filter(p => p.id !== id));
+  };
+
+  // Site Settings CRUD
+  const updateSiteSettings = async (updates: Partial<SiteSettings>) => {
+    const updateData: any = {};
+    if (updates.logoUrl !== undefined) updateData.logo_url = updates.logoUrl;
+    if (updates.whatsappLink !== undefined) updateData.whatsapp_link = updates.whatsappLink;
+    if (updates.adminPassword !== undefined) updateData.admin_password = updates.adminPassword;
+
+    // Try to update, if no settings exist yet, insert
+    const { data: existing } = await supabase.from('site_settings').select('*').single();
+    if (existing) {
+      const { error } = await supabase.from('site_settings').update(updateData).eq('id', existing.id);
+      if (!error) setSiteSettings({ ...siteSettings!, ...updates });
+    } else {
+      const { data, error } = await supabase.from('site_settings').insert([updateData]).select();
+      if (data) {
+        setSiteSettings({
+          id: data[0].id,
+          logoUrl: data[0].logo_url || "",
+          whatsappLink: data[0].whatsapp_link || "",
+          adminPassword: data[0].admin_password || "admin"
+        });
+      }
+    }
+  };
+
   return {
     categories,
     artPacks,
+    clients,
+    promotions,
+    siteSettings,
     isLoaded,
     addCategory,
     updateCategory,
@@ -210,7 +297,11 @@ export function useStore() {
     deleteClient,
     toggleClientStatus,
     uploadMockup,
-    renewSubscription
+    renewSubscription,
+    addPromotion,
+    updatePromotion,
+    deletePromotion,
+    updateSiteSettings
   };
 }
 

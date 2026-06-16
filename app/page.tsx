@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
+import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 
 export default function Home() {
@@ -10,6 +11,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { siteSettings, isLoaded } = useStore();
 
   useEffect(() => {
     // Se o cliente acessou via link (ex: ?token=ABC123)
@@ -26,8 +28,9 @@ export default function Home() {
     setLoading(true);
     
     try {
-      if (token === "admin") {
-        localStorage.setItem("auth_token", token);
+      const adminPassword = siteSettings?.adminPassword || "admin";
+      if (token === adminPassword) {
+        localStorage.setItem("auth_token", "admin");
         router.push("/admin");
         return;
       }

@@ -23,6 +23,21 @@ export interface Client {
   createdAt: string;
 }
 
+export interface Promotion {
+  id: string;
+  title: string;
+  price: string;
+  imageUrl: string;
+  link: string;
+}
+
+export interface SiteSettings {
+  id: string;
+  logoUrl: string;
+  whatsappLink: string;
+  adminPassword: string;
+}
+
 // In a real app, this would be a database.
 // For now, we'll use a local mock that we can manipulate.
 // Note: In Next.js App Router, we'd typically use a DB or a file on the server.

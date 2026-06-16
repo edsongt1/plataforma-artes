@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useState, useRef } from "react";
 import { useStore } from "@/lib/store";
-import { Plus, Edit2, Trash2, Layout, Image as ImageIcon, ExternalLink, X, LogOut, Upload, Users, Copy, Check, Power, PowerOff, Calendar, Phone, RefreshCw } from "lucide-react";
+import { Plus, Edit2, Trash2, Layout, Image as ImageIcon, ExternalLink, X, LogOut, Upload, Users, Copy, Check, Power, PowerOff, Calendar, Phone, RefreshCw, Search, Settings, Tag } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function AdminPage() {
@@ -13,20 +13,25 @@ export default function AdminPage() {
     artPacks, addArtPack, updateArtPack, deleteArtPack,
     clients, addClient, deleteClient, toggleClientStatus, renewSubscription,
     uploadMockup,
+    promotions, addPromotion, updatePromotion, deletePromotion,
+    siteSettings, updateSiteSettings,
     isLoaded 
   } = useStore();
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<"packs" | "categories" | "clients">("packs");
+  const [activeTab, setActiveTab] = useState<"packs" | "categories" | "clients" | "promotions" | "settings">("packs");
   const [isPackModalOpen, setIsPackModalOpen] = useState(false);
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [isPromotionModalOpen, setIsPromotionModalOpen] = useState(false);
   const [editingPack, setEditingPack] = useState<any>(null);
   const [editingCat, setEditingCat] = useState<any>(null);
+  const [editingPromotion, setEditingPromotion] = useState<any>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Form states
   const [packForm, setPackForm] = useState({ 
@@ -42,6 +47,12 @@ export default function AdminPage() {
     phone: "", 
     startDate: new Date().toISOString().split('T')[0],
     duration: 1 // 1 mês por padrão
+  });
+  const [promotionForm, setPromotionForm] = useState({ 
+    title: "", 
+    price: "", 
+    imageUrl: "", 
+    link: "" 
   });
 
   if (!isLoaded) return <div className="p-8 text-center">Carregando painel...</div>;
@@ -158,6 +169,101 @@ export default function AdminPage() {
     setIsCatModalOpen(true);
   };
 
+  const handleSavePromotion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      if (editingPromotion) {
+        await updatePromotion(editingPromotion.id, promotionForm);
+      } else {
+        if (promotions.length >= 5) {
+          alert("Limite de 5 anúncios atingido!");
+          setIsSaving(false);
+          return;
+        }
+        await addPromotion(promotionForm);
+      }
+      setIsPromotionModalOpen(false);
+      setEditingPromotion(null);
+      setPromotionForm({ title: "", price: "", imageUrl: "", link: "" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const openEditPromotion = (promo: any) => {
+    setEditingPromotion(promo);
+    setPromotionForm({ 
+      title: promo.title, 
+      price: promo.price, 
+      imageUrl: promo.imageUrl, 
+      link: promo.link 
+    });
+    setIsPromotionModalOpen(true);
+  };
+
+  const [whatsappForm, setWhatsappForm] = useState("");
+  const [passwordForm, setPasswordForm] = useState({ current: "", new: "", confirm: "" });
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const publicUrl = await uploadMockup(file);
+      await updateSiteSettings({ logoUrl: publicUrl });
+    } catch (error: any) {
+      alert("Erro no upload: " + error.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSaveWhatsapp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      await updateSiteSettings({ whatsappLink: whatsappForm });
+      alert("Link do WhatsApp salvo com sucesso!");
+    } catch (error: any) {
+      alert("Erro ao salvar link: " + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const currentAdminPassword = siteSettings?.adminPassword || "admin";
+    
+    if (passwordForm.current !== currentAdminPassword) {
+      alert("Senha atual incorreta!");
+      return;
+    }
+    
+    if (passwordForm.new !== passwordForm.confirm) {
+      alert("As senhas novas não coincidem!");
+      return;
+    }
+    
+    if (passwordForm.new.length < 3) {
+      alert("A nova senha deve ter pelo menos 3 caracteres!");
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      await updateSiteSettings({ adminPassword: passwordForm.new });
+      alert("Senha alterada com sucesso!");
+      setPasswordForm({ current: "", new: "", confirm: "" });
+    } catch (error: any) {
+      alert("Erro ao alterar senha: " + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
@@ -193,6 +299,24 @@ export default function AdminPage() {
             <Users size={20} />
             Gerenciar Clientes
           </button>
+          <button
+            onClick={() => setActiveTab("promotions")}
+            className={`w-full flex items-center gap-3 px-6 py-4 transition-colors ${
+              activeTab === "promotions" ? "bg-indigo-800 border-l-4 border-white" : "hover:bg-indigo-800"
+            }`}
+          >
+            <Tag size={20} />
+            Promoções
+          </button>
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`w-full flex items-center gap-3 px-6 py-4 transition-colors ${
+              activeTab === "settings" ? "bg-indigo-800 border-l-4 border-white" : "hover:bg-indigo-800"
+            }`}
+          >
+            <Settings size={20} />
+            Configurações
+          </button>
           
           <div className="mt-auto mb-4">
             <button
@@ -208,21 +332,41 @@ export default function AdminPage() {
 
       {/* Main Content */}
       <main className="flex-1 p-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
           <h1 className="text-2xl font-bold text-gray-900">
-            {activeTab === "packs" ? "Gerenciar Packs de Artes" : activeTab === "categories" ? "Gerenciar Categorias" : "Gerenciar Clientes"}
+            {activeTab === "packs" ? "Gerenciar Packs de Artes" : 
+             activeTab === "categories" ? "Gerenciar Categorias" : 
+             activeTab === "clients" ? "Gerenciar Clientes" :
+             activeTab === "promotions" ? "Gerenciar Promoções" : "Configurações do Site"}
           </h1>
-          <button
-            onClick={() => {
-              if (activeTab === "packs") setIsPackModalOpen(true);
-              else if (activeTab === "categories") setIsCatModalOpen(true);
-              else setIsClientModalOpen(true);
-            }}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
-          >
-            <Plus size={20} />
-            Adicionar {activeTab === "packs" ? "Pack" : activeTab === "categories" ? "Categoria" : "Cliente"}
-          </button>
+          <div className="flex gap-3 w-full sm:w-auto">
+            {activeTab === "clients" && (
+              <div className="relative flex-1 sm:flex-none sm:w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Pesquisar por nome ou número..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-black"
+                />
+              </div>
+            )}
+            {(activeTab === "packs" || activeTab === "categories" || activeTab === "clients" || activeTab === "promotions") && (
+              <button
+                onClick={() => {
+                  if (activeTab === "packs") setIsPackModalOpen(true);
+                  else if (activeTab === "categories") setIsCatModalOpen(true);
+                  else if (activeTab === "clients") setIsClientModalOpen(true);
+                  else setIsPromotionModalOpen(true);
+                }}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors whitespace-nowrap"
+              >
+                <Plus size={20} />
+                Adicionar {activeTab === "packs" ? "Pack" : activeTab === "categories" ? "Categoria" : activeTab === "clients" ? "Cliente" : "Promoção"}
+              </button>
+            )}
+          </div>
         </div>
 
         {activeTab === "packs" ? (
@@ -269,7 +413,7 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
-        ) : (
+        ) : activeTab === "clients" ? (
           <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
             <table className="w-full text-left">
               <thead className="bg-gray-50 border-b">
@@ -284,6 +428,12 @@ export default function AdminPage() {
               <tbody className="divide-y text-black">
                 {clients.map((client) => {
                   const isExpired = client.endDate ? new Date(client.endDate) < new Date() : false;
+                  const matchesSearch = 
+                    client.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                    (client.phone && client.phone.includes(searchTerm));
+                  
+                  if (!matchesSearch) return null;
+                  
                   return (
                     <tr key={client.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
@@ -340,6 +490,103 @@ export default function AdminPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        ) : activeTab === "promotions" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {promotions.map((promo) => (
+              <div key={promo.id} className="bg-white p-4 rounded-xl shadow-sm border">
+                <img src={promo.imageUrl} alt={promo.title} className="w-full h-32 object-cover rounded-lg mb-3" />
+                <h3 className="font-bold text-gray-900 mb-1">{promo.title}</h3>
+                <p className="text-lg font-semibold text-indigo-600 mb-3">{promo.price}</p>
+                <div className="flex gap-2">
+                  <button onClick={() => openEditPromotion(promo)} className="flex-1 p-2 text-blue-600 hover:bg-blue-50 rounded flex items-center justify-center gap-1"><Edit2 size={16} /> Editar</button>
+                  <button onClick={() => deletePromotion(promo.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Logo do Site</h2>
+              <div className="flex items-center gap-6">
+                {siteSettings?.logoUrl && (
+                  <img src={siteSettings.logoUrl} alt="Logo" className="h-20 object-contain" />
+                )}
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                  />
+                  <p className="text-sm text-gray-500 mt-2">Faça upload da logo do seu site</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Link do WhatsApp (Ajuda)</h2>
+              <form onSubmit={handleSaveWhatsapp} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Link do WhatsApp</label>
+                  <input
+                    type="text"
+                    value={whatsappForm || siteSettings?.whatsappLink || ""}
+                    onChange={(e) => setWhatsappForm(e.target.value)}
+                    className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="https://wa.me/5511999999999"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-indigo-400"
+                >
+                  {isSaving ? "Salvando..." : "Salvar Link"}
+                </button>
+              </form>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Alterar Senha do Admin</h2>
+              <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Senha Atual</label>
+                  <input
+                    type="password"
+                    value={passwordForm.current}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                    className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Nova Senha</label>
+                  <input
+                    type="password"
+                    value={passwordForm.new}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
+                    className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Confirmar Nova Senha</label>
+                  <input
+                    type="password"
+                    value={passwordForm.confirm}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+                    className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-indigo-400"
+                >
+                  {isSaving ? "Alterando..." : "Alterar Senha"}
+                </button>
+              </form>
+            </div>
           </div>
         )}
       </main>
@@ -574,6 +821,64 @@ export default function AdminPage() {
                 className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors disabled:bg-indigo-400"
               >
                 {isSaving ? "Salvando..." : "Criar Cliente e Gerar Link"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Promotion Modal */}
+      {isPromotionModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 text-black">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">{editingPromotion ? "Editar Promoção" : "Nova Promoção"}</h2>
+              <button onClick={() => setIsPromotionModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
+            </div>
+            <form onSubmit={handleSavePromotion} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Título</label>
+                <input
+                  required
+                  value={promotionForm.title}
+                  onChange={e => setPromotionForm({...promotionForm, title: e.target.value})}
+                  className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Preço</label>
+                <input
+                  required
+                  value={promotionForm.price}
+                  onChange={e => setPromotionForm({...promotionForm, price: e.target.value})}
+                  className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Ex: R$ 99,90"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">URL da Imagem</label>
+                <input
+                  required
+                  value={promotionForm.imageUrl}
+                  onChange={e => setPromotionForm({...promotionForm, imageUrl: e.target.value})}
+                  className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Link</label>
+                <input
+                  required
+                  value={promotionForm.link}
+                  onChange={e => setPromotionForm({...promotionForm, link: e.target.value})}
+                  className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors disabled:bg-indigo-400"
+              >
+                {isSaving ? "Salvando..." : editingPromotion ? "Atualizar Promoção" : "Salvar Promoção"}
               </button>
             </form>
           </div>
