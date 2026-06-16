@@ -29,6 +29,7 @@ export interface Promotion {
   price: string;
   imageUrl: string;
   link: string;
+  position: "left" | "right";
 }
 
 export interface SiteSettings {

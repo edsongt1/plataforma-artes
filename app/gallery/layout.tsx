@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useStore } from "@/lib/store";
 
 export default function GalleryLayout({
   children,
@@ -11,6 +12,7 @@ export default function GalleryLayout({
 }) {
   const router = useRouter();
   const [isValidating, setIsValidating] = useState(true);
+  const { fetchCurrentClient } = useStore();
 
   useEffect(() => {
     const validateAccess = async () => {
@@ -22,6 +24,7 @@ export default function GalleryLayout({
       }
 
       if (token === "admin") {
+        fetchCurrentClient(token);
         setIsValidating(false);
         return;
       }
@@ -48,6 +51,8 @@ export default function GalleryLayout({
         return;
       }
 
+      // Carrega o cliente atual na store
+      fetchCurrentClient(token);
       setIsValidating(false);
     };
 
@@ -56,7 +61,7 @@ export default function GalleryLayout({
     // Opcional: Verificar a cada 30 segundos se o acesso ainda é válido
     const interval = setInterval(validateAccess, 30000);
     return () => clearInterval(interval);
-  }, [router]);
+  }, [router, fetchCurrentClient]);
 
   if (isValidating) {
     return (

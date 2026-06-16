@@ -10,6 +10,7 @@ export function useStore() {
   const [clients, setClients] = useState<Client[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
+  const [currentClient, setCurrentClient] = useState<Client | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -17,12 +18,18 @@ export function useStore() {
   }, []);
 
   const fetchData = async () => {
+    console.log('🔍 Buscando dados do Supabase...');
     try {
       const { data: cats } = await supabase.from('categories').select('*').order('name');
       const { data: packs } = await supabase.from('art_packs').select('*').order('created_at', { ascending: false });
       const { data: cls } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
       const { data: promos } = await supabase.from('promotions').select('*').order('created_at', { ascending: false });
-      const { data: settings } = await supabase.from('site_settings').select('*').limit(1).maybeSingle();
+      const { data: settings, error: settingsError } = await supabase.from('site_settings').select('*').limit(1).maybeSingle();
+
+      if (settingsError) {
+        console.error('❌ Erro ao buscar site_settings:', settingsError);
+      }
+      console.log('⚙️ Configurações carregadas:', settings);
 
       if (cats) setCategories(cats);
       if (packs) {
@@ -55,7 +62,8 @@ export function useStore() {
           title: p.title,
           price: p.price,
           imageUrl: p.image_url,
-          link: p.link
+          link: p.link,
+          position: p.position || "left"
         }));
         setPromotions(mappedPromos);
       }
@@ -66,9 +74,14 @@ export function useStore() {
           whatsappLink: settings.whatsapp_link,
           adminPassword: settings.admin_password
         });
+        console.log('✅ siteSettings definido:', {
+          id: settings.id,
+          logoUrl: settings.logo_url,
+          whatsappLink: settings.whatsapp_link
+        });
       }
     } catch (error) {
-      console.error('Erro ao buscar dados:', error);
+      console.error('❌ Erro ao buscar dados:', error);
     } finally {
       setIsLoaded(true);
     }
@@ -221,23 +234,37 @@ export function useStore() {
   };
 
   const addPromotion = async (promotion: Omit<Promotion, 'id'>) => {
-    const { data, error } = await supabase.from('promotions').insert([{
-      title: promotion.title,
-      price: promotion.price,
-      image_url: promotion.imageUrl,
-      link: promotion.link
-    }]).select();
+    try {
+      console.log('Adding promotion:', promotion);
+      const { data, error } = await supabase.from('promotions').insert([{
+        title: promotion.title,
+        price: promotion.price,
+        image_url: promotion.imageUrl,
+        link: promotion.link,
+        position: promotion.position
+      }]).select();
 
-    if (error) console.error('Erro ao adicionar promoção:', error);
-    if (data) {
-      const newPromo = {
-        id: data[0].id,
-        title: data[0].title,
-        price: data[0].price,
-        imageUrl: data[0].image_url,
-        link: data[0].link
-      };
-      setPromotions([newPromo, ...promotions]);
+      if (error) {
+        console.error('Supabase error adding promotion:', error);
+        alert('Erro ao adicionar promoção: ' + error.message);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const newPromo = {
+          id: data[0].id,
+          title: data[0].title,
+          price: data[0].price,
+          imageUrl: data[0].image_url,
+          link: data[0].link,
+          position: data[0].position || "left"
+        };
+        setPromotions([newPromo, ...promotions]);
+        console.log('Promotion added:', newPromo);
+      }
+    } catch (err) {
+      console.error('Error in addPromotion:', err);
+      alert('Erro inesperado ao adicionar promoção.');
     }
   };
 
@@ -247,6 +274,7 @@ export function useStore() {
     if (promotion.price !== undefined) updateData.price = promotion.price;
     if (promotion.imageUrl !== undefined) updateData.image_url = promotion.imageUrl;
     if (promotion.link !== undefined) updateData.link = promotion.link;
+    if (promotion.position !== undefined) updateData.position = promotion.position;
 
     const { error } = await supabase.from('promotions').update(updateData).eq('id', id);
     if (error) console.error('Erro ao atualizar promoção:', error);
@@ -260,23 +288,42 @@ export function useStore() {
   };
 
   const updateSiteSettings = async (updates: Partial<SiteSettings>) => {
+    console.log('🔧 Atualizando configurações do site:', updates);
     const updateData: any = {};
     if (updates.logoUrl !== undefined) updateData.logo_url = updates.logoUrl;
     if (updates.whatsappLink !== undefined) updateData.whatsapp_link = updates.whatsappLink;
     if (updates.adminPassword !== undefined) updateData.admin_password = updates.adminPassword;
 
+    console.log('📝 Dados para atualizar:', updateData);
     const { data: existing, error: fetchError } = await supabase.from('site_settings').select('*').limit(1).maybeSingle();
-    if (fetchError) console.error('Erro ao buscar configurações:', fetchError);
+    console.log('📋 Configurações existentes:', existing);
+    if (fetchError) {
+      console.error('❌ Erro ao buscar configurações:', fetchError);
+      alert('Erro ao buscar configurações: ' + fetchError.message);
+      return;
+    }
     
     if (existing) {
+      console.log('✏️ Atualizando configurações existentes...');
       const { error } = await supabase.from('site_settings').update(updateData).eq('id', existing.id);
-      if (error) console.error('Erro ao atualizar configurações:', error);
+      if (error) {
+        console.error('❌ Erro ao atualizar configurações:', error);
+        alert('Erro ao atualizar configurações: ' + error.message);
+        return;
+      }
+      console.log('✅ Configurações atualizadas com sucesso!');
       if (!error && siteSettings) {
         setSiteSettings({ ...siteSettings, ...updates });
       }
     } else {
+      console.log('🆕 Criando novas configurações...');
       const { data, error } = await supabase.from('site_settings').insert([updateData]).select();
-      if (error) console.error('Erro ao criar configurações:', error);
+      if (error) {
+        console.error('❌ Erro ao criar configurações:', error);
+        alert('Erro ao criar configurações: ' + error.message);
+        return;
+      }
+      console.log('✅ Configurações criadas com sucesso!', data);
       if (data) {
         setSiteSettings({
           id: data[0].id,
@@ -288,12 +335,56 @@ export function useStore() {
     }
   };
 
+  const fetchCurrentClient = async (token: string) => {
+    console.log('🔍 fetchCurrentClient chamado com token:', token);
+    if (token === "admin" || !token) {
+      console.log('⚠️ Token é admin ou vazio, setando currentClient para null');
+      setCurrentClient(null);
+      return;
+    }
+    try {
+      console.log('📡 Buscando cliente no Supabase...');
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("token", token)
+        .single();
+      
+      if (error) {
+        console.error('❌ Erro ao buscar cliente atual no Supabase:', error);
+        alert('Erro ao carregar dados do cliente: ' + error.message);
+        setCurrentClient(null);
+        return;
+      }
+      
+      console.log('✅ Cliente encontrado:', data);
+      if (data) {
+        const clientData = {
+          id: data.id,
+          name: data.name,
+          phone: data.phone,
+          token: data.token,
+          active: data.active,
+          startDate: data.start_date,
+          endDate: data.end_date,
+          createdAt: data.created_at
+        };
+        console.log('📋 Dados mapeados do cliente:', clientData);
+        setCurrentClient(clientData);
+      }
+    } catch (err) {
+      console.error('❌ Erro na função fetchCurrentClient:', err);
+      alert('Erro inesperado ao carregar cliente');
+    }
+  };
+
   return {
     categories,
     artPacks,
     clients,
     promotions,
     siteSettings,
+    currentClient,
     isLoaded,
     addCategory,
     updateCategory,
@@ -310,25 +401,33 @@ export function useStore() {
     addPromotion,
     updatePromotion,
     deletePromotion,
-    updateSiteSettings
+    updateSiteSettings,
+    fetchCurrentClient
   };
 }
 
 async function uploadMockup(file: File) {
+  console.log('📤 Iniciando upload do arquivo:', file.name);
   try {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
     const filePath = `${fileName}`;
 
+    console.log('📁 Caminho do arquivo:', filePath);
     const { data, error } = await supabase.storage
       .from('mockups')
       .upload(filePath, file);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Erro no upload:', error);
+      throw error;
+    }
+    console.log('✅ Upload concluído:', data);
 
     const { data: { publicUrl } } = supabase.storage
       .from('mockups')
       .getPublicUrl(filePath);
+    console.log('🔗 URL pública:', publicUrl);
 
     return publicUrl;
   } catch (error: any) {

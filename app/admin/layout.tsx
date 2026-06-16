@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useStore } from "@/lib/store";
 
 export default function AdminLayout({
   children,
@@ -9,17 +10,23 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const { siteSettings, isLoaded } = useStore();
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
+    if (!isLoaded) return;
+    
     const token = localStorage.getItem("auth_token");
-    if (token !== "admin") {
-      router.push("/");
-    } else {
+    const adminPassword = siteSettings?.adminPassword || "admin";
+    
+    if (token === adminPassword || token === "admin") {
       setAuthorized(true);
+    } else {
+      router.push("/");
     }
-  }, [router]);
+  }, [router, siteSettings, isLoaded]);
 
+  if (!isLoaded) return <div className="p-8 text-center text-black">Carregando...</div>;
   if (!authorized) return <div className="p-8 text-center text-black">Verificando autorização...</div>;
 
   return <>{children}</>;

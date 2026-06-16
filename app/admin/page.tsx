@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { Plus, Edit2, Trash2, Layout, Image as ImageIcon, ExternalLink, X, LogOut, Upload, Users, Copy, Check, Power, PowerOff, Calendar, Phone, RefreshCw, Search, Settings, Tag } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -52,8 +52,19 @@ export default function AdminPage() {
     title: "", 
     price: "", 
     imageUrl: "", 
-    link: "" 
+    link: "",
+    position: "left" as "left" | "right"
   });
+  
+  const [whatsappForm, setWhatsappForm] = useState("");
+  const [passwordForm, setPasswordForm] = useState({ current: "", new: "", confirm: "" });
+
+  // Initialize form values when siteSettings loads
+  useEffect(() => {
+    if (siteSettings) {
+      setWhatsappForm(siteSettings.whatsappLink || "");
+    }
+  }, [siteSettings]);
 
   if (!isLoaded) return <div className="p-8 text-center">Carregando painel...</div>;
 
@@ -197,13 +208,11 @@ export default function AdminPage() {
       title: promo.title, 
       price: promo.price, 
       imageUrl: promo.imageUrl, 
-      link: promo.link 
+      link: promo.link,
+      position: promo.position || "left"
     });
     setIsPromotionModalOpen(true);
   };
-
-  const [whatsappForm, setWhatsappForm] = useState("");
-  const [passwordForm, setPasswordForm] = useState({ current: "", new: "", confirm: "" });
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -235,7 +244,11 @@ export default function AdminPage() {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🔑 handleChangePassword chamado');
+    console.log('🔐 passwordForm:', passwordForm);
+    console.log('⚙️ siteSettings:', siteSettings);
     const currentAdminPassword = siteSettings?.adminPassword || "admin";
+    console.log('🆚 Comparando - Senha digitada:', passwordForm.current, '| Senha atual:', currentAdminPassword);
     
     if (passwordForm.current !== currentAdminPassword) {
       alert("Senha atual incorreta!");
@@ -254,10 +267,12 @@ export default function AdminPage() {
     
     setIsSaving(true);
     try {
+      console.log('📤 Enviando nova senha para updateSiteSettings:', passwordForm.new);
       await updateSiteSettings({ adminPassword: passwordForm.new });
       alert("Senha alterada com sucesso!");
       setPasswordForm({ current: "", new: "", confirm: "" });
     } catch (error: any) {
+      console.error('❌ Erro ao alterar senha:', error);
       alert("Erro ao alterar senha: " + error.message);
     } finally {
       setIsSaving(false);
@@ -494,13 +509,13 @@ export default function AdminPage() {
         ) : activeTab === "promotions" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {promotions.map((promo) => (
-              <div key={promo.id} className="bg-white p-4 rounded-xl shadow-sm border">
-                <img src={promo.imageUrl} alt={promo.title} className="w-full h-32 object-cover rounded-lg mb-3" />
-                <h3 className="font-bold text-gray-900 mb-1">{promo.title}</h3>
-                <p className="text-lg font-semibold text-indigo-600 mb-3">{promo.price}</p>
+              <div key={promo.id} className="bg-white p-3 rounded-xl shadow-sm border">
+                <img src={promo.imageUrl} alt={promo.title} className="w-full h-16 object-cover rounded-lg mb-2" />
+                <h3 className="font-bold text-gray-900 mb-1 text-sm">{promo.title}</h3>
+                <p className="text-sm font-semibold text-indigo-600 mb-2">{promo.price}</p>
                 <div className="flex gap-2">
-                  <button onClick={() => openEditPromotion(promo)} className="flex-1 p-2 text-blue-600 hover:bg-blue-50 rounded flex items-center justify-center gap-1"><Edit2 size={16} /> Editar</button>
-                  <button onClick={() => deletePromotion(promo.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
+                  <button onClick={() => openEditPromotion(promo)} className="flex-1 p-1.5 text-blue-600 hover:bg-blue-50 rounded flex items-center justify-center gap-1 text-xs"><Edit2 size={14} /> Editar</button>
+                  <button onClick={() => deletePromotion(promo.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                 </div>
               </div>
             ))}
@@ -872,6 +887,17 @@ export default function AdminPage() {
                   onChange={e => setPromotionForm({...promotionForm, link: e.target.value})}
                   className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Posição na Galeria</label>
+                <select
+                  value={promotionForm.position}
+                  onChange={e => setPromotionForm({...promotionForm, position: e.target.value as "left" | "right"})}
+                  className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="left">Lado Esquerdo</option>
+                  <option value="right">Lado Direito</option>
+                </select>
               </div>
               <button
                 type="submit"

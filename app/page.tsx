@@ -30,7 +30,7 @@ export default function Home() {
     try {
       const adminPassword = siteSettings?.adminPassword || "admin";
       if (token === adminPassword) {
-        localStorage.setItem("auth_token", "admin");
+        localStorage.setItem("auth_token", token);
         router.push("/admin");
         return;
       }
