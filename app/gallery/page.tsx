@@ -33,10 +33,11 @@ export default function GalleryPage() {
   // Calcular dias restantes
   useEffect(() => {
     console.log('📅 Calculando dias restantes - currentClient:', currentClient);
-    if (currentClient?.endDate) {
+    const endDateVal = currentClient?.endDate;
+    if (endDateVal) {
       const calculateDays = () => {
         const now = new Date();
-        const endDate = new Date(currentClient.endDate);
+        const endDate = new Date(endDateVal);
         console.log('📊 Datas para cálculo - agora:', now, '| término:', endDate);
         const diffTime = endDate.getTime() - now.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
