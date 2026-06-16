@@ -19,7 +19,7 @@ export default function AdminLayout({
     const token = localStorage.getItem("auth_token");
     const adminPassword = siteSettings?.adminPassword || "admin";
     
-    if (token === adminPassword || token === "admin") {
+    if (token === adminPassword) {
       setAuthorized(true);
     } else {
       router.push("/");

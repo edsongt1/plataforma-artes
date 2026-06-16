@@ -196,7 +196,7 @@ export default function AdminPage() {
       }
       setIsPromotionModalOpen(false);
       setEditingPromotion(null);
-      setPromotionForm({ title: "", price: "", imageUrl: "", link: "" });
+      setPromotionForm({ title: "", price: "", imageUrl: "", link: "", position: "left" });
     } finally {
       setIsSaving(false);
     }
