@@ -22,12 +22,12 @@ export function useStore() {
       const { data: packs } = await supabase.from('art_packs').select('*').order('created_at', { ascending: false });
       const { data: cls } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
       const { data: promos } = await supabase.from('promotions').select('*').order('created_at', { ascending: false });
-      const { data: settings } = await supabase.from('site_settings').select('*').single();
+      const { data: settings } = await supabase.from('site_settings').select('*').limit(1).maybeSingle();
 
       if (cats) setCategories(cats);
       if (packs) {
         // Mapeia os nomes do banco (snake_case) para o código (camelCase)
-        const mappedPacks = packs.map((p: any) => ({
+        const mappedPacks = packs.map((p) => ({
           id: p.id,
           title: p.title,
           mockupUrls: p.mockup_urls,
@@ -38,7 +38,7 @@ export function useStore() {
         setArtPacks(mappedPacks);
       }
       if (cls) {
-        const mappedClients = cls.map((c: any) => ({
+        const mappedClients = cls.map((c) => ({
           id: c.id,
           name: c.name,
           phone: c.phone,
@@ -51,7 +51,7 @@ export function useStore() {
         setClients(mappedClients);
       }
       if (promos) {
-        const mappedPromos = promos.map((p: any) => ({
+        const mappedPromos = promos.map((p) => ({
           id: p.id,
           title: p.title,
           price: p.price,
@@ -78,16 +78,19 @@ export function useStore() {
   // Category CRUD
   const addCategory = async (name: string) => {
     const { data, error } = await supabase.from('categories').insert([{ name }]).select();
+    if (error) console.error('Erro ao adicionar categoria:', error);
     if (data) setCategories([...categories, data[0]]);
   };
 
   const updateCategory = async (id: string, name: string) => {
     const { error } = await supabase.from('categories').update({ name }).eq('id', id);
+    if (error) console.error('Erro ao atualizar categoria:', error);
     if (!error) setCategories(categories.map(c => c.id === id ? { ...c, name } : c));
   };
 
   const deleteCategory = async (id: string) => {
     const { error } = await supabase.from('categories').delete().eq('id', id);
+    if (error) console.error('Erro ao deletar categoria:', error);
     if (!error) {
       setCategories(categories.filter(c => c.id !== id));
       setArtPacks(artPacks.filter(p => p.categoryId !== id));
@@ -104,6 +107,7 @@ export function useStore() {
       duration: pack.duration
     }]).select();
     
+    if (error) console.error('Erro ao adicionar pack:', error);
     if (data) {
       const newPack = {
         id: data[0].id,
@@ -119,18 +123,20 @@ export function useStore() {
 
   const updateArtPack = async (id: string, pack: Partial<ArtPack>) => {
     const updateData: any = {};
-    if (pack.title) updateData.title = pack.title;
-    if (pack.mockupUrls) updateData.mockup_urls = pack.mockupUrls;
-    if (pack.downloadUrl) updateData.download_url = pack.downloadUrl;
-    if (pack.categoryId) updateData.category_id = pack.categoryId;
-    if (pack.duration) updateData.duration = pack.duration;
+    if (pack.title !== undefined) updateData.title = pack.title;
+    if (pack.mockupUrls !== undefined) updateData.mockup_urls = pack.mockupUrls;
+    if (pack.downloadUrl !== undefined) updateData.download_url = pack.downloadUrl;
+    if (pack.categoryId !== undefined) updateData.category_id = pack.categoryId;
+    if (pack.duration !== undefined) updateData.duration = pack.duration;
 
     const { error } = await supabase.from('art_packs').update(updateData).eq('id', id);
+    if (error) console.error('Erro ao atualizar pack:', error);
     if (!error) setArtPacks(artPacks.map(p => p.id === id ? { ...p, ...pack } : p));
   };
 
   const deleteArtPack = async (id: string) => {
     const { error } = await supabase.from('art_packs').delete().eq('id', id);
+    if (error) console.error('Erro ao deletar pack:', error);
     if (!error) setArtPacks(artPacks.filter(p => p.id !== id));
   };
 
@@ -175,11 +181,13 @@ export function useStore() {
 
   const updateClient = async (id: string, updates: Partial<Client>) => {
     const { error } = await supabase.from('clients').update(updates).eq('id', id);
+    if (error) console.error('Erro ao atualizar cliente:', error);
     if (!error) setClients(clients.map(c => c.id === id ? { ...c, ...updates } : c));
   };
 
   const deleteClient = async (id: string) => {
     const { error } = await supabase.from('clients').delete().eq('id', id);
+    if (error) console.error('Erro ao deletar cliente:', error);
     if (!error) setClients(clients.filter(c => c.id !== id));
   };
 
@@ -187,6 +195,7 @@ export function useStore() {
     const client = clients.find(c => c.id === id);
     if (client) {
       const { error } = await supabase.from('clients').update({ active: !client.active }).eq('id', id);
+      if (error) console.error('Erro ao trocar status do cliente:', error);
       if (!error) setClients(clients.map(c => c.id === id ? { ...c, active: !client.active } : c));
     }
   };
@@ -208,6 +217,7 @@ export function useStore() {
         })
         .eq('id', id);
 
+      if (error) console.error('Erro ao renovar assinatura:', error);
       if (!error) {
         setClients(clients.map(c => c.id === id ? { ...c, endDate: newEnd.toISOString(), active: true } : c));
       }
@@ -225,6 +235,7 @@ export function useStore() {
       link: promotion.link
     }]).select();
 
+    if (error) console.error('Erro ao adicionar promoção:', error);
     if (data) {
       const newPromo = {
         id: data[0].id,
@@ -239,17 +250,19 @@ export function useStore() {
 
   const updatePromotion = async (id: string, promotion: Partial<Promotion>) => {
     const updateData: any = {};
-    if (promotion.title) updateData.title = promotion.title;
-    if (promotion.price) updateData.price = promotion.price;
-    if (promotion.imageUrl) updateData.image_url = promotion.imageUrl;
-    if (promotion.link) updateData.link = promotion.link;
+    if (promotion.title !== undefined) updateData.title = promotion.title;
+    if (promotion.price !== undefined) updateData.price = promotion.price;
+    if (promotion.imageUrl !== undefined) updateData.image_url = promotion.imageUrl;
+    if (promotion.link !== undefined) updateData.link = promotion.link;
 
     const { error } = await supabase.from('promotions').update(updateData).eq('id', id);
+    if (error) console.error('Erro ao atualizar promoção:', error);
     if (!error) setPromotions(promotions.map(p => p.id === id ? { ...p, ...promotion } : p));
   };
 
   const deletePromotion = async (id: string) => {
     const { error } = await supabase.from('promotions').delete().eq('id', id);
+    if (error) console.error('Erro ao deletar promoção:', error);
     if (!error) setPromotions(promotions.filter(p => p.id !== id));
   };
 
@@ -261,12 +274,18 @@ export function useStore() {
     if (updates.adminPassword !== undefined) updateData.admin_password = updates.adminPassword;
 
     // Try to update, if no settings exist yet, insert
-    const { data: existing } = await supabase.from('site_settings').select('*').single();
+    const { data: existing, error: fetchError } = await supabase.from('site_settings').select('*').limit(1).maybeSingle();
+    if (fetchError) console.error('Erro ao buscar configurações:', fetchError);
+    
     if (existing) {
       const { error } = await supabase.from('site_settings').update(updateData).eq('id', existing.id);
-      if (!error) setSiteSettings({ ...siteSettings!, ...updates });
+      if (error) console.error('Erro ao atualizar configurações:', error);
+      if (!error && siteSettings) {
+        setSiteSettings({ ...siteSettings, ...updates });
+      }
     } else {
       const { data, error } = await supabase.from('site_settings').insert([updateData]).select();
+      if (error) console.error('Erro ao criar configurações:', error);
       if (data) {
         setSiteSettings({
           id: data[0].id,
@@ -291,7 +310,6 @@ export function useStore() {
     addArtPack,
     updateArtPack,
     deleteArtPack,
-    clients,
     addClient,
     updateClient,
     deleteClient,
