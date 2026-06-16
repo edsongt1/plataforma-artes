@@ -297,7 +297,7 @@ export function useStore() {
     }
   };
 
-  return {
+   return {
     categories,
     artPacks,
     clients,
