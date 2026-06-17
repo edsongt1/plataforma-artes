@@ -32,6 +32,24 @@ export interface Promotion {
   position: "left" | "right";
 }
 
+export interface CustomSection {
+  id: string;
+  name: string;
+  icon: string;
+  sort_order?: number;
+  items: CustomSectionItem[];
+}
+
+export interface CustomSectionItem {
+  id: string;
+  section_id: string;
+  title: string;
+  description?: string;
+  image_url?: string;
+  link?: string;
+  sort_order?: number;
+}
+
 export interface SiteSettings {
   id: string;
   logoUrl: string;

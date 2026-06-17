@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Category, ArtPack, Client, Promotion, SiteSettings } from './data';
+import { Category, ArtPack, Client, Promotion, SiteSettings, CustomSection, CustomSectionItem } from './data';
 import { supabase } from './supabase';
 
 export function useStore() {
@@ -9,6 +9,7 @@ export function useStore() {
   const [artPacks, setArtPacks] = useState<ArtPack[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [customSections, setCustomSections] = useState<CustomSection[]>([]);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [currentClient, setCurrentClient] = useState<Client | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -24,6 +25,8 @@ export function useStore() {
       const { data: packs } = await supabase.from('art_packs').select('*').order('created_at', { ascending: false });
       const { data: cls } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
       const { data: promos } = await supabase.from('promotions').select('*').order('created_at', { ascending: false });
+      const { data: sections } = await supabase.from('custom_sections').select('*').order('sort_order');
+      const { data: items } = await supabase.from('section_items').select('*').order('sort_order');
       const { data: settings, error: settingsError } = await supabase.from('site_settings').select('*').limit(1).maybeSingle();
 
       if (settingsError) {
@@ -66,6 +69,18 @@ export function useStore() {
           position: p.position || "left"
         }));
         setPromotions(mappedPromos);
+      }
+      // Mapeia seções e itens
+      if (sections && items) {
+        const mappedSections: CustomSection[] = sections.map(sec => ({
+          id: sec.id,
+          name: sec.name,
+          icon: sec.icon,
+          sort_order: sec.sort_order,
+          items: items.filter(item => item.section_id === sec.id)
+        }));
+        setCustomSections(mappedSections);
+        console.log('✅ Seções carregadas:', mappedSections);
       }
       if (settings) {
         setSiteSettings({
@@ -287,6 +302,133 @@ export function useStore() {
     if (!error) setPromotions(promotions.filter(p => p.id !== id));
   };
 
+  // Funções para seções customizadas
+  const addCustomSection = async (section: Omit<CustomSection, 'id' | 'items'>) => {
+    try {
+      const { data, error } = await supabase.from('custom_sections').insert([{
+        name: section.name,
+        icon: section.icon,
+        sort_order: section.sort_order || 0
+      }]).select();
+
+      if (error) {
+        console.error('Erro ao adicionar seção:', error);
+        alert('Erro ao adicionar seção: ' + error.message);
+        return;
+      }
+
+      if (data) {
+        const newSection = { ...data[0], items: [] };
+        setCustomSections([...customSections, newSection]);
+        console.log('✅ Seção adicionada:', newSection);
+      }
+    } catch (err) {
+      console.error('Error in addCustomSection:', err);
+      alert('Erro inesperado ao adicionar seção.');
+    }
+  };
+
+  const updateCustomSection = async (id: string, section: Partial<CustomSection>) => {
+    const updateData: any = {};
+    if (section.name !== undefined) updateData.name = section.name;
+    if (section.icon !== undefined) updateData.icon = section.icon;
+    if (section.sort_order !== undefined) updateData.sort_order = section.sort_order;
+
+    const { error } = await supabase.from('custom_sections').update(updateData).eq('id', id);
+    if (error) {
+      console.error('Erro ao atualizar seção:', error);
+      alert('Erro ao atualizar seção: ' + error.message);
+      return;
+    }
+
+    if (!error) {
+      setCustomSections(customSections.map(s => s.id === id ? { ...s, ...section } : s));
+    }
+  };
+
+  const deleteCustomSection = async (id: string) => {
+    const { error } = await supabase.from('custom_sections').delete().eq('id', id);
+    if (error) {
+      console.error('Erro ao deletar seção:', error);
+      alert('Erro ao deletar seção: ' + error.message);
+      return;
+    }
+    if (!error) setCustomSections(customSections.filter(s => s.id !== id));
+  };
+
+  // Funções para itens das seções
+  const addSectionItem = async (item: Omit<CustomSectionItem, 'id'>) => {
+    try {
+      const { data, error } = await supabase.from('section_items').insert([{
+        section_id: item.section_id,
+        title: item.title,
+        description: item.description,
+        image_url: item.image_url,
+        link: item.link,
+        sort_order: item.sort_order || 0
+      }]).select();
+
+      if (error) {
+        console.error('Erro ao adicionar item:', error);
+        alert('Erro ao adicionar item: ' + error.message);
+        return;
+      }
+
+      if (data) {
+        const newItem = data[0];
+        setCustomSections(customSections.map(sec => 
+          sec.id === item.section_id 
+            ? { ...sec, items: [...sec.items, newItem] }
+            : sec
+        ));
+        console.log('✅ Item adicionado:', newItem);
+      }
+    } catch (err) {
+      console.error('Error in addSectionItem:', err);
+      alert('Erro inesperado ao adicionar item.');
+    }
+  };
+
+  const updateSectionItem = async (id: string, item: Partial<CustomSectionItem>) => {
+    const updateData: any = {};
+    if (item.title !== undefined) updateData.title = item.title;
+    if (item.description !== undefined) updateData.description = item.description;
+    if (item.image_url !== undefined) updateData.image_url = item.image_url;
+    if (item.link !== undefined) updateData.link = item.link;
+    if (item.sort_order !== undefined) updateData.sort_order = item.sort_order;
+
+    const { error } = await supabase.from('section_items').update(updateData).eq('id', id);
+    if (error) {
+      console.error('Erro ao atualizar item:', error);
+      alert('Erro ao atualizar item: ' + error.message);
+      return;
+    }
+
+    if (!error) {
+      // Atualiza o item na seção correspondente
+      setCustomSections(customSections.map(sec => ({
+        ...sec,
+        items: sec.items.map(i => i.id === id ? { ...i, ...item } : i)
+      })));
+    }
+  };
+
+  const deleteSectionItem = async (id: string, sectionId: string) => {
+    const { error } = await supabase.from('section_items').delete().eq('id', id);
+    if (error) {
+      console.error('Erro ao deletar item:', error);
+      alert('Erro ao deletar item: ' + error.message);
+      return;
+    }
+    if (!error) {
+      setCustomSections(customSections.map(sec => 
+        sec.id === sectionId 
+          ? { ...sec, items: sec.items.filter(i => i.id !== id) }
+          : sec
+      ));
+    }
+  };
+
   const updateSiteSettings = async (updates: Partial<SiteSettings>) => {
     console.log('🔧 Atualizando configurações do site:', updates);
     const updateData: any = {};
@@ -383,6 +525,7 @@ export function useStore() {
     artPacks,
     clients,
     promotions,
+    customSections,
     siteSettings,
     currentClient,
     isLoaded,
@@ -401,6 +544,12 @@ export function useStore() {
     addPromotion,
     updatePromotion,
     deletePromotion,
+    addCustomSection,
+    updateCustomSection,
+    deleteCustomSection,
+    addSectionItem,
+    updateSectionItem,
+    deleteSectionItem,
     updateSiteSettings,
     fetchCurrentClient
   };
