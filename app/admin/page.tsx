@@ -14,20 +14,31 @@ export default function AdminPage() {
     clients, addClient, deleteClient, toggleClientStatus, renewSubscription,
     uploadMockup,
     promotions, addPromotion, updatePromotion, deletePromotion,
+    customSections, addCustomSection, updateCustomSection, deleteCustomSection,
+    addSectionItem, updateSectionItem, deleteSectionItem,
     siteSettings, updateSiteSettings,
     isLoaded 
   } = useStore();
+  
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<"packs" | "categories" | "clients" | "promotions" | "settings">("packs");
+  const [activeTab, setActiveTab] = useState<"packs" | "categories" | "clients" | "promotions" | "settings" | "sections">("packs");
   const [isPackModalOpen, setIsPackModalOpen] = useState(false);
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isPromotionModalOpen, setIsPromotionModalOpen] = useState(false);
+  const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
   const [editingPack, setEditingPack] = useState<any>(null);
   const [editingCat, setEditingCat] = useState<any>(null);
   const [editingPromotion, setEditingPromotion] = useState<any>(null);
+  const [editingSection, setEditingSection] = useState<any>(null);
+  const [sectionForm, setSectionForm] = useState({ name: "", icon: "" });
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [currentSectionForItems, setCurrentSectionForItems] = useState<string | null>(null);
+  const [itemForm, setItemForm] = useState({ title: "", description: "", imageUrl: "", link: "" });
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -281,78 +292,140 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-20"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-indigo-900 text-white flex-shrink-0">
-        <div className="p-6">
-          <h2 className="text-xl font-bold">Admin Panel</h2>
+      <aside className={`
+        fixed md:relative z-30 h-full bg-indigo-900 text-white
+        w-72 md:w-64 flex-shrink-0 overflow-y-auto
+        transform transition-transform duration-300
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+        <div className="p-4 sm:p-6 flex items-center justify-between md:justify-start">
+          <h2 className="text-lg sm:text-xl font-bold">Admin Panel</h2>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden p-2 text-white hover:bg-indigo-800 rounded-lg"
+          >
+            <X size={24} />
+          </button>
         </div>
         <nav className="mt-4 flex flex-col h-[calc(100vh-100px)]">
           <button
-            onClick={() => setActiveTab("packs")}
-            className={`w-full flex items-center gap-3 px-6 py-4 transition-colors ${
+            onClick={() => {
+              setActiveTab("packs");
+              setSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 transition-colors text-sm ${
               activeTab === "packs" ? "bg-indigo-800 border-l-4 border-white" : "hover:bg-indigo-800"
             }`}
           >
             <ImageIcon size={20} />
-            Gerenciar Packs
+            <span className="hidden sm:inline">Gerenciar Packs</span>
+            <span className="sm:hidden">Packs</span>
           </button>
           <button
-            onClick={() => setActiveTab("categories")}
-            className={`w-full flex items-center gap-3 px-6 py-4 transition-colors ${
+            onClick={() => {
+              setActiveTab("categories");
+              setSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 transition-colors text-sm ${
               activeTab === "categories" ? "bg-indigo-800 border-l-4 border-white" : "hover:bg-indigo-800"
             }`}
           >
             <Layout size={20} />
-            Categorias
+            <span className="hidden sm:inline">Categorias</span>
+            <span className="sm:hidden">Categ</span>
           </button>
           <button
-            onClick={() => setActiveTab("clients")}
-            className={`w-full flex items-center gap-3 px-6 py-4 transition-colors ${
+            onClick={() => {
+              setActiveTab("clients");
+              setSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 transition-colors text-sm ${
               activeTab === "clients" ? "bg-indigo-800 border-l-4 border-white" : "hover:bg-indigo-800"
             }`}
           >
             <Users size={20} />
-            Gerenciar Clientes
+            <span className="hidden sm:inline">Gerenciar Clientes</span>
+            <span className="sm:hidden">Clientes</span>
           </button>
           <button
-            onClick={() => setActiveTab("promotions")}
-            className={`w-full flex items-center gap-3 px-6 py-4 transition-colors ${
+            onClick={() => {
+              setActiveTab("promotions");
+              setSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 transition-colors text-sm ${
               activeTab === "promotions" ? "bg-indigo-800 border-l-4 border-white" : "hover:bg-indigo-800"
             }`}
           >
             <Tag size={20} />
-            Promoções
+            <span className="hidden sm:inline">Promoções</span>
+            <span className="sm:hidden">Promos</span>
           </button>
           <button
-            onClick={() => setActiveTab("settings")}
-            className={`w-full flex items-center gap-3 px-6 py-4 transition-colors ${
+            onClick={() => {
+              setActiveTab("sections");
+              setSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 transition-colors text-sm ${
+              activeTab === "sections" ? "bg-indigo-800 border-l-4 border-white" : "hover:bg-indigo-800"
+            }`}
+          >
+            <Layout size={20} />
+            <span className="hidden sm:inline">Seções</span>
+            <span className="sm:hidden">Seções</span>
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("settings");
+              setSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 transition-colors text-sm ${
               activeTab === "settings" ? "bg-indigo-800 border-l-4 border-white" : "hover:bg-indigo-800"
             }`}
           >
             <Settings size={20} />
-            Configurações
+            <span className="hidden sm:inline">Configurações</span>
+            <span className="sm:hidden">Config</span>
           </button>
           
           <div className="mt-auto mb-4">
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-6 py-4 text-red-300 hover:bg-red-900/50 hover:text-white transition-colors"
+              className="w-full flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 text-red-300 hover:bg-red-900/50 hover:text-white transition-colors text-sm"
             >
               <LogOut size={20} />
-              Sair do Painel
+              <span className="hidden sm:inline">Sair do Painel</span>
+              <span className="sm:hidden">Sair</span>
             </button>
           </div>
         </nav>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        {/* Mobile Menu Button */}
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="md:hidden mb-4 p-2 bg-indigo-600 text-white rounded-lg"
+        >
+          <Layout size={24} />
+        </button>
+        
         <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             {activeTab === "packs" ? "Gerenciar Packs de Artes" : 
              activeTab === "categories" ? "Gerenciar Categorias" : 
              activeTab === "clients" ? "Gerenciar Clientes" :
-             activeTab === "promotions" ? "Gerenciar Promoções" : "Configurações do Site"}
+             activeTab === "promotions" ? "Gerenciar Promoções" :
+             activeTab === "sections" ? "Gerenciar Seções" : "Configurações do Site"}
           </h1>
           <div className="flex gap-3 w-full sm:w-auto">
             {activeTab === "clients" && (
@@ -367,54 +440,87 @@ export default function AdminPage() {
                 />
               </div>
             )}
-            {(activeTab === "packs" || activeTab === "categories" || activeTab === "clients" || activeTab === "promotions") && (
+            {(activeTab === "packs" || activeTab === "categories" || activeTab === "clients" || activeTab === "promotions" || activeTab === "sections") && (
               <button
                 onClick={() => {
                   if (activeTab === "packs") setIsPackModalOpen(true);
                   else if (activeTab === "categories") setIsCatModalOpen(true);
                   else if (activeTab === "clients") setIsClientModalOpen(true);
-                  else setIsPromotionModalOpen(true);
+                  else if (activeTab === "promotions") setIsPromotionModalOpen(true);
+                  else {
+                    setEditingSection(null);
+                    setSectionForm({ name: "", icon: "" });
+                    setIsSectionModalOpen(true);
+                  }
                 }}
                 className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors whitespace-nowrap"
               >
                 <Plus size={20} />
-                Adicionar {activeTab === "packs" ? "Pack" : activeTab === "categories" ? "Categoria" : activeTab === "clients" ? "Cliente" : "Promoção"}
+                Adicionar {activeTab === "packs" ? "Pack" : activeTab === "categories" ? "Categoria" : activeTab === "clients" ? "Cliente" : activeTab === "promotions" ? "Promoção" : "Seção"}
               </button>
             )}
           </div>
         </div>
 
         {activeTab === "packs" ? (
-          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">Mockup</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">Título</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">Categoria</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-700 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y text-black">
-                {artPacks.map((pack) => (
-                  <tr key={pack.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <img src={pack.mockupUrls[0]} alt="" className="w-12 h-12 rounded object-cover" />
-                    </td>
-                    <td className="px-6 py-4 font-medium text-gray-900">{pack.title}</td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {categories.find(c => c.id === pack.categoryId)?.name || "---"}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => openEditPack(pack)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={18} /></button>
-                        <button onClick={() => deleteArtPack(pack.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 size={18} /></button>
-                      </div>
-                    </td>
+          <div className="space-y-4">
+            {/* Desktop Table */}
+            <div className="hidden md:block bg-white rounded-xl shadow-sm border overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-700">Mockup</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-700">Título</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-700">Categoria</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-700 text-right">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y text-black">
+                  {artPacks.map((pack) => (
+                    <tr key={pack.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <img src={pack.mockupUrls[0]} alt="" className="w-12 h-12 rounded object-cover" />
+                      </td>
+                      <td className="px-6 py-4 font-medium text-gray-900">{pack.title}</td>
+                      <td className="px-6 py-4 text-gray-600">
+                        {categories.find(c => c.id === pack.categoryId)?.name || "---"}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => openEditPack(pack)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={18} /></button>
+                          <button onClick={() => deleteArtPack(pack.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 size={18} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-3">
+              {artPacks.map((pack) => (
+                <div key={pack.id} className="bg-white p-4 rounded-xl shadow-sm border">
+                  <div className="flex gap-4">
+                    <img src={pack.mockupUrls[0]} alt="" className="w-20 h-20 rounded-lg object-cover" />
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900 mb-1">{pack.title}</h3>
+                      <p className="text-sm text-gray-600">
+                        {categories.find(c => c.id === pack.categoryId)?.name || "---"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+                    <button onClick={() => openEditPack(pack)} className="flex-1 p-2 text-blue-600 hover:bg-blue-50 rounded flex items-center justify-center gap-1">
+                      <Edit2 size={16} /> Editar
+                    </button>
+                    <button onClick={() => deleteArtPack(pack.id)} className="flex-1 p-2 text-red-600 hover:bg-red-50 rounded flex items-center justify-center gap-1">
+                      <Trash2 size={16} /> Excluir
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : activeTab === "categories" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -429,82 +535,157 @@ export default function AdminPage() {
             ))}
           </div>
         ) : activeTab === "clients" ? (
-          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">Cliente</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">Status</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">Vencimento</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">Token</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-700 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y text-black">
-                {clients.map((client) => {
-                  const isExpired = client.endDate ? new Date(client.endDate) < new Date() : false;
-                  const matchesSearch = 
-                    client.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                    (client.phone && client.phone.includes(searchTerm));
-                  
-                  if (!matchesSearch) return null;
-                  
-                  return (
-                    <tr key={client.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">{client.name}</div>
-                        <div className="text-xs text-gray-500">{client.phone || "Sem telefone"}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          isExpired 
-                            ? "bg-red-100 text-red-700" 
-                            : client.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
-                        }`}>
-                          {isExpired ? "Expirado" : client.active ? "Ativo" : "Inativo"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {client.endDate ? new Date(client.endDate).toLocaleDateString('pt-BR') : "---"}
-                      </td>
-                      <td className="px-6 py-4 font-mono text-sm">{client.token}</td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button 
-                            onClick={() => renewSubscription(client.id, 1)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded"
-                            title="Renovar 1 mês"
-                          >
-                            <RefreshCw size={18} />
-                          </button>
-                          <button 
-                            onClick={() => copyToClipboard(client.token, client.id)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                            title="Copiar Token"
-                          >
-                            {copiedId === client.id ? <Check size={18} className="text-green-600" /> : <Copy size={18} />}
-                          </button>
-                          <button 
-                            onClick={() => toggleClientStatus(client.id)}
-                            className={`p-2 rounded ${client.active ? "text-amber-600 hover:bg-amber-50" : "text-green-600 hover:bg-green-50"}`}
-                            title={client.active ? "Desativar" : "Ativar"}
-                          >
-                            {client.active ? <PowerOff size={18} /> : <Power size={18} />}
-                          </button>
-                          <button 
-                            onClick={() => deleteClient(client.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded"
-                            title="Excluir"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="space-y-4">
+            {/* Desktop Table */}
+            <div className="hidden md:block bg-white rounded-xl shadow-sm border overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-700">Cliente</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-700">Status</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-700">Vencimento</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-700">Token</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-700 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y text-black">
+                  {clients.map((client) => {
+                    const isExpired = client.endDate ? new Date(client.endDate) < new Date() : false;
+                    const matchesSearch = 
+                      client.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                      (client.phone && client.phone.includes(searchTerm));
+                    
+                    if (!matchesSearch) return null;
+                    
+                    return (
+                      <tr key={client.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-900">{client.name}</div>
+                          <div className="text-xs text-gray-500">{client.phone || "Sem telefone"}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            isExpired 
+                              ? "bg-red-100 text-red-700" 
+                              : client.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                          }`}>
+                            {isExpired ? "Expirado" : client.active ? "Ativo" : "Inativo"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {client.endDate ? new Date(client.endDate).toLocaleDateString('pt-BR') : "---"}
+                        </td>
+                        <td className="px-6 py-4 font-mono text-sm">{client.token}</td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => renewSubscription(client.id, 1)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded"
+                              title="Renovar 1 mês"
+                            >
+                              <RefreshCw size={18} />
+                            </button>
+                            <button 
+                              onClick={() => copyToClipboard(client.token, client.id)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                              title="Copiar Token"
+                            >
+                              {copiedId === client.id ? <Check size={18} className="text-green-600" /> : <Copy size={18} />}
+                            </button>
+                            <button 
+                              onClick={() => toggleClientStatus(client.id)}
+                              className={`p-2 rounded ${client.active ? "text-amber-600 hover:bg-amber-50" : "text-green-600 hover:bg-green-50"}`}
+                              title={client.active ? "Desativar" : "Ativar"}
+                            >
+                              {client.active ? <PowerOff size={18} /> : <Power size={18} />}
+                            </button>
+                            <button 
+                              onClick={() => deleteClient(client.id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded"
+                              title="Excluir"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-3">
+              {clients.map((client) => {
+                const isExpired = client.endDate ? new Date(client.endDate) < new Date() : false;
+                const matchesSearch = 
+                  client.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                  (client.phone && client.phone.includes(searchTerm));
+                
+                if (!matchesSearch) return null;
+                
+                return (
+                  <div key={client.id} className="bg-white p-4 rounded-xl shadow-sm border">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-medium text-gray-900">{client.name}</h3>
+                        <p className="text-sm text-gray-600">{client.phone || "Sem telefone"}</p>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        isExpired 
+                          ? "bg-red-100 text-red-700" 
+                          : client.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                      }`}>
+                        {isExpired ? "Expirado" : client.active ? "Ativo" : "Inativo"}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2 mb-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Vencimento:</span>
+                        <span className="text-sm font-medium">{client.endDate ? new Date(client.endDate).toLocaleDateString('pt-BR') : "---"}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Token:</span>
+                        <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">{client.token}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-4 gap-2 pt-3 border-t">
+                      <button 
+                        onClick={() => renewSubscription(client.id, 1)}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded flex items-center justify-center"
+                        title="Renovar 1 mês"
+                      >
+                        <RefreshCw size={16} />
+                      </button>
+                      <button 
+                        onClick={() => copyToClipboard(client.token, client.id)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded flex items-center justify-center"
+                        title="Copiar Token"
+                      >
+                        {copiedId === client.id ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
+                      </button>
+                      <button 
+                        onClick={() => toggleClientStatus(client.id)}
+                        className={`p-2 rounded flex items-center justify-center ${client.active ? "text-amber-600 hover:bg-amber-50" : "text-green-600 hover:bg-green-50"}`}
+                        title={client.active ? "Desativar" : "Ativar"}
+                      >
+                        {client.active ? <PowerOff size={16} /> : <Power size={16} />}
+                      </button>
+                      <button 
+                        onClick={() => deleteClient(client.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded flex items-center justify-center"
+                        title="Excluir"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : activeTab === "promotions" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -519,6 +700,111 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : activeTab === "sections" ? (
+          <div className="space-y-6">
+            {/* Seções customizadas */}
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Seções do Site</h2>
+              <div className="grid grid-cols-1 gap-6">
+                {customSections.map((section) => (
+                  <div key={section.id} className="p-4 rounded-xl border">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{section.icon}</span>
+                        <h3 className="font-bold text-gray-900 text-lg">{section.name}</h3>
+                        <span className="text-sm text-gray-500">({section.items?.length || 0} itens)</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setCurrentSectionForItems(section.id);
+                            setEditingItem(null);
+                            setItemForm({ title: "", description: "", imageUrl: "", link: "" });
+                            setIsItemModalOpen(true);
+                          }}
+                          className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-1"
+                        >
+                          <Plus size={14} /> Adicionar Item
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingSection(section);
+                            setSectionForm({ name: section.name, icon: section.icon });
+                            setIsSectionModalOpen(true);
+                          }}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm("Tem certeza que quer excluir esta seção?")) {
+                              deleteCustomSection(section.id);
+                            }
+                          }}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded"
+                          title="Excluir seção"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Lista de itens da seção */}
+                    {section.items && section.items.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {section.items.map((item: any) => (
+                          <div key={item.id} className="p-3 rounded-lg border bg-gray-50">
+                            {item.image_url && (
+                              <img 
+                                src={item.image_url} 
+                                alt={item.title} 
+                                className="w-full h-24 object-cover rounded mb-2"
+                              />
+                            )}
+                            <h4 className="font-semibold text-gray-900 text-sm">{item.title}</h4>
+                            {item.description && (
+                              <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.description}</p>
+                            )}
+                            <div className="flex gap-1 mt-2">
+                              <button
+                                onClick={() => {
+                                  setCurrentSectionForItems(section.id);
+                                  setEditingItem(item);
+                                  setItemForm({ 
+                                    title: item.title, 
+                                    description: item.description, 
+                                    imageUrl: item.image_url, 
+                                    link: item.link 
+                                  });
+                                  setIsItemModalOpen(true);
+                                }}
+                                className="flex-1 p-1.5 text-blue-600 hover:bg-blue-50 rounded text-xs"
+                              >
+                                <Edit2 size={12} /> Editar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm("Excluir este item?")) {
+                                    deleteSectionItem(item.id, section.id);
+                                  }
+                                }}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">Nenhum item nesta seção ainda.</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         ) : (
           <div className="space-y-6">
@@ -732,6 +1018,141 @@ export default function AdminPage() {
                 className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-indigo-400"
               >
                 {isSaving ? "Salvando..." : editingCat ? "Salvar Alterações" : "Adicionar Categoria"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Section Modal */}
+      {isSectionModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 text-black">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">{editingSection ? "Editar Seção" : "Nova Seção"}</h2>
+              <button onClick={() => setIsSectionModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (editingSection) {
+                  await updateCustomSection(editingSection.id, { name: sectionForm.name, icon: sectionForm.icon });
+                } else {
+                  await addCustomSection({ name: sectionForm.name, icon: sectionForm.icon || "📁" });
+                }
+                setIsSectionModalOpen(false);
+                setEditingSection(null);
+                setSectionForm({ name: "", icon: "" });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nome da Seção</label>
+                <input
+                  required
+                  value={sectionForm.name}
+                  onChange={e => setSectionForm({ ...sectionForm, name: e.target.value })}
+                  className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Ex: Novidades, Ofertas"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Ícone (emoji)</label>
+                <input
+                  value={sectionForm.icon}
+                  onChange={e => setSectionForm({ ...sectionForm, icon: e.target.value })}
+                  className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Ex: ⭐, 🎉, 🔥"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+              >
+                {editingSection ? "Atualizar Seção" : "Adicionar Seção"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Item Modal */}
+      {isItemModalOpen && currentSectionForItems && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 text-black">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">{editingItem ? "Editar Item" : "Novo Item"}</h2>
+              <button onClick={() => setIsItemModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (editingItem) {
+                  await updateSectionItem(editingItem.id, {
+                    title: itemForm.title,
+                    description: itemForm.description,
+                    image_url: itemForm.imageUrl,
+                    link: itemForm.link
+                  });
+                } else if (currentSectionForItems) {
+                  await addSectionItem({
+                    section_id: currentSectionForItems,
+                    title: itemForm.title,
+                    description: itemForm.description,
+                    image_url: itemForm.imageUrl,
+                    link: itemForm.link
+                  });
+                }
+                setIsItemModalOpen(false);
+                setEditingItem(null);
+                setCurrentSectionForItems(null);
+                setItemForm({ title: "", description: "", imageUrl: "", link: "" });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Título do Item</label>
+                <input
+                  required
+                  value={itemForm.title}
+                  onChange={e => setItemForm({ ...itemForm, title: e.target.value })}
+                  className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Ex: Serviço de Design"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Descrição</label>
+                <textarea
+                  value={itemForm.description}
+                  onChange={e => setItemForm({ ...itemForm, description: e.target.value })}
+                  className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                  rows={3}
+                  placeholder="Breve descrição..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">URL da Imagem</label>
+                <input
+                  value={itemForm.imageUrl}
+                  onChange={e => setItemForm({ ...itemForm, imageUrl: e.target.value })}
+                  className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="https://exemplo.com/imagem.jpg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Link (opcional)</label>
+                <input
+                  value={itemForm.link}
+                  onChange={e => setItemForm({ ...itemForm, link: e.target.value })}
+                  className="w-full mt-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="https://exemplo.com/saiba-mais"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+              >
+                {editingItem ? "Atualizar Item" : "Adicionar Item"}
               </button>
             </form>
           </div>
