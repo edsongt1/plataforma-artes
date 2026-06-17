@@ -204,7 +204,14 @@ export function useStore() {
   };
 
   const updateClient = async (id: string, updates: Partial<Client>) => {
-    const { error } = await supabase.from('clients').update(updates).eq('id', id);
+    // Convert camelCase to snake_case for Supabase
+    const dbUpdates: any = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+    if (updates.active !== undefined) dbUpdates.active = updates.active;
+    if (updates.amountPaid !== undefined) dbUpdates.amount_paid = updates.amountPaid;
+    
+    const { error } = await supabase.from('clients').update(dbUpdates).eq('id', id);
     if (error) console.error('Erro ao atualizar cliente:', error);
     if (!error) setClients(clients.map(c => c.id === id ? { ...c, ...updates } : c));
   };

@@ -11,7 +11,7 @@ export default function AdminPage() {
   const { 
     categories, addCategory, updateCategory, deleteCategory,
     artPacks, addArtPack, updateArtPack, deleteArtPack,
-    clients, addClient, deleteClient, toggleClientStatus, renewSubscription,
+    clients, addClient, updateClient, deleteClient, toggleClientStatus, renewSubscription,
     uploadMockup,
     promotions, addPromotion, updatePromotion, deletePromotion,
     customSections, addCustomSection, updateCustomSection, deleteCustomSection,
@@ -34,6 +34,7 @@ export default function AdminPage() {
   const [editingCat, setEditingCat] = useState<any>(null);
   const [editingPromotion, setEditingPromotion] = useState<any>(null);
   const [editingSection, setEditingSection] = useState<any>(null);
+  const [editingClient, setEditingClient] = useState<any>(null);
   const [sectionForm, setSectionForm] = useState({ name: "", icon: "" });
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -154,23 +155,36 @@ export default function AdminPage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const result = await addClient(
-        clientForm.name, 
-        clientForm.phone, 
-        clientForm.startDate, 
-        clientForm.duration,
-        clientForm.amountPaid
-      );
-      if (result) {
-        setIsClientModalOpen(false);
-        setClientForm({ 
-          name: "", 
-          phone: "", 
-          startDate: new Date().toISOString().split('T')[0], 
-          duration: 1,
-          amountPaid: 0
+      if (editingClient) {
+        // Update existing client
+        await updateClient(editingClient.id, {
+          name: clientForm.name,
+          phone: clientForm.phone,
+          amountPaid: clientForm.amountPaid
         });
+      } else {
+        // Create new client
+        const result = await addClient(
+          clientForm.name, 
+          clientForm.phone, 
+          clientForm.startDate, 
+          clientForm.duration,
+          clientForm.amountPaid
+        );
+        if (!result) {
+          return;
+        }
       }
+      
+      setIsClientModalOpen(false);
+      setEditingClient(null);
+      setClientForm({ 
+        name: "", 
+        phone: "", 
+        startDate: new Date().toISOString().split('T')[0], 
+        duration: 1,
+        amountPaid: 0
+      });
     } finally {
       setIsSaving(false);
     }
@@ -192,6 +206,18 @@ export default function AdminPage() {
     setEditingCat(cat);
     setCatForm({ name: cat.name });
     setIsCatModalOpen(true);
+  };
+
+  const openEditClient = (client: any) => {
+    setEditingClient(client);
+    setClientForm({ 
+      name: client.name, 
+      phone: client.phone || '', 
+      startDate: client.startDate ? new Date(client.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      duration: 1, // We don't need to edit duration usually, but we can keep it
+      amountPaid: client.amountPaid || 0
+    });
+    setIsClientModalOpen(true);
   };
 
   const handleSavePromotion = async (e: React.FormEvent) => {
@@ -641,6 +667,13 @@ export default function AdminPage() {
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-2">
                             <button 
+                              onClick={() => openEditClient(client)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                              title="Editar cliente"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button 
                               onClick={() => renewSubscription(client.id, 1)}
                               className="p-2 text-indigo-600 hover:bg-indigo-50 rounded"
                               title="Renovar 1 mês"
@@ -720,7 +753,14 @@ export default function AdminPage() {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-4 gap-2 pt-3 border-t">
+                    <div className="grid grid-cols-5 gap-2 pt-3 border-t">
+                      <button 
+                        onClick={() => openEditClient(client)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded flex items-center justify-center"
+                        title="Editar cliente"
+                      >
+                        <Edit2 size={16} />
+                      </button>
                       <button 
                         onClick={() => renewSubscription(client.id, 1)}
                         className="p-2 text-indigo-600 hover:bg-indigo-50 rounded flex items-center justify-center"
@@ -1232,14 +1272,17 @@ export default function AdminPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 text-black">
           <div className="bg-white p-8 rounded-2xl w-full max-w-md shadow-xl relative animate-in zoom-in duration-200">
             <button 
-              onClick={() => setIsClientModalOpen(false)}
+              onClick={() => {
+                setIsClientModalOpen(false);
+                setEditingClient(null);
+              }}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
             >
               <X size={20} />
             </button>
             <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
               <Users className="text-indigo-600" />
-              Novo Cliente
+              {editingClient ? "Editar Cliente" : "Novo Cliente"}
             </h2>
             <form onSubmit={handleSaveClient} className="space-y-4">
               <div>
@@ -1267,46 +1310,61 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <Calendar size={16} /> Data de Início
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={clientForm.startDate}
-                  onChange={(e) => setClientForm({ ...clientForm, startDate: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-black"
-                />
-              </div>
+              {!editingClient && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                      <Calendar size={16} /> Data de Início
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={clientForm.startDate}
+                      onChange={(e) => setClientForm({ ...clientForm, startDate: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-black"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Duração do Plano</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setClientForm({ ...clientForm, duration: 1 })}
-                    className={`py-2 px-4 rounded-lg border font-medium transition-all ${
-                      clientForm.duration === 1 
-                        ? "bg-indigo-600 text-white border-indigo-600" 
-                        : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                    }`}
-                  >
-                    1 Mês
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setClientForm({ ...clientForm, duration: 12 })}
-                    className={`py-2 px-4 rounded-lg border font-medium transition-all ${
-                      clientForm.duration === 12 
-                        ? "bg-indigo-600 text-white border-indigo-600" 
-                        : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                    }`}
-                  >
-                    1 Ano
-                  </button>
-                </div>
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Duração do Plano</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setClientForm({ ...clientForm, duration: 1 })}
+                        className={`py-2 px-4 rounded-lg border font-medium transition-all ${
+                          clientForm.duration === 1 
+                            ? "bg-indigo-600 text-white border-indigo-600" 
+                            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        1 Mês
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setClientForm({ ...clientForm, duration: 12 })}
+                        className={`py-2 px-4 rounded-lg border font-medium transition-all ${
+                          clientForm.duration === 12 
+                            ? "bg-indigo-600 text-white border-indigo-600" 
+                            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        1 Ano
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
+                    Vencimento previsto: <span className="font-bold">
+                      {(() => {
+                        const start = new Date(clientForm.startDate);
+                        const end = new Date(clientForm.startDate);
+                        end.setMonth(start.getMonth() + clientForm.duration);
+                        return end.toLocaleDateString('pt-BR');
+                      })()}
+                    </span>
+                  </p>
+                </>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
@@ -1323,23 +1381,12 @@ export default function AdminPage() {
                 />
               </div>
 
-              <p className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
-                Vencimento previsto: <span className="font-bold">
-                  {(() => {
-                    const start = new Date(clientForm.startDate);
-                    const end = new Date(clientForm.startDate);
-                    end.setMonth(start.getMonth() + clientForm.duration);
-                    return end.toLocaleDateString('pt-BR');
-                  })()}
-                </span>
-              </p>
-
               <button
                 type="submit"
                 disabled={isSaving}
                 className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors disabled:bg-indigo-400"
               >
-                {isSaving ? "Salvando..." : "Criar Cliente e Gerar Link"}
+                {isSaving ? "Salvando..." : editingClient ? "Atualizar Cliente" : "Criar Cliente e Gerar Link"}
               </button>
             </form>
           </div>
