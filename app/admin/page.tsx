@@ -57,7 +57,8 @@ export default function AdminPage() {
     name: "", 
     phone: "", 
     startDate: new Date().toISOString().split('T')[0],
-    duration: 1 // 1 mês por padrão
+    duration: 1, // 1 mês por padrão
+    amountPaid: 0 // Valor pago pela assinatura
   });
   const [promotionForm, setPromotionForm] = useState({ 
     title: "", 
@@ -157,7 +158,8 @@ export default function AdminPage() {
         clientForm.name, 
         clientForm.phone, 
         clientForm.startDate, 
-        clientForm.duration
+        clientForm.duration,
+        clientForm.amountPaid
       );
       if (result) {
         setIsClientModalOpen(false);
@@ -165,7 +167,8 @@ export default function AdminPage() {
           name: "", 
           phone: "", 
           startDate: new Date().toISOString().split('T')[0], 
-          duration: 1 
+          duration: 1,
+          amountPaid: 0
         });
       }
     } finally {
@@ -536,6 +539,61 @@ export default function AdminPage() {
           </div>
         ) : activeTab === "clients" ? (
           <div className="space-y-4">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Total Faturamento */}
+              <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-2xl shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-100 text-sm font-medium mb-1">Faturamento Total</p>
+                    <p className="text-3xl font-bold">
+                      R$ {clients.reduce((total, client) => total + (client.amountPaid || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="bg-white/20 p-3 rounded-xl">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Clientes Ativos */}
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-2xl shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-100 text-sm font-medium mb-1">Clientes Ativos</p>
+                    <p className="text-3xl font-bold">
+                      {clients.filter(client => {
+                        const isExpired = client.endDate ? new Date(client.endDate) < new Date() : false;
+                        return client.active && !isExpired;
+                      }).length}
+                    </p>
+                  </div>
+                  <div className="bg-white/20 p-3 rounded-xl">
+                    <Users size={32} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Clientes Vencidos */}
+              <div className="bg-gradient-to-br from-red-500 to-red-600 text-white p-6 rounded-2xl shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-red-100 text-sm font-medium mb-1">Clientes Vencidos</p>
+                    <p className="text-3xl font-bold">
+                      {clients.filter(client => client.endDate && new Date(client.endDate) < new Date()).length}
+                    </p>
+                  </div>
+                  <div className="bg-white/20 p-3 rounded-xl">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Desktop Table */}
             <div className="hidden md:block bg-white rounded-xl shadow-sm border overflow-hidden">
               <table className="w-full text-left">
@@ -544,6 +602,7 @@ export default function AdminPage() {
                     <th className="px-6 py-4 text-sm font-semibold text-gray-700">Cliente</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-700">Status</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-700">Vencimento</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-700">Valor Pago</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-700">Token</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-700 text-right">Ações</th>
                   </tr>
@@ -574,6 +633,9 @@ export default function AdminPage() {
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
                           {client.endDate ? new Date(client.endDate).toLocaleDateString('pt-BR') : "---"}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-semibold text-green-600">
+                          R$ {(client.amountPaid || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-6 py-4 font-mono text-sm">{client.token}</td>
                         <td className="px-6 py-4 text-right">
@@ -645,6 +707,12 @@ export default function AdminPage() {
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Vencimento:</span>
                         <span className="text-sm font-medium">{client.endDate ? new Date(client.endDate).toLocaleDateString('pt-BR') : "---"}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Valor Pago:</span>
+                        <span className="text-sm font-bold text-green-600">
+                          R$ {(client.amountPaid || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Token:</span>
@@ -1238,6 +1306,21 @@ export default function AdminPage() {
                     1 Ano
                   </button>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                  💰 Valor Pago pela Assinatura (R$)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={clientForm.amountPaid}
+                  onChange={(e) => setClientForm({ ...clientForm, amountPaid: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-black"
+                  placeholder="Ex: 49.90"
+                />
               </div>
 
               <p className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">

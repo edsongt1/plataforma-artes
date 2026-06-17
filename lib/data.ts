@@ -21,6 +21,7 @@ export interface Client {
   startDate?: string;
   endDate?: string;
   createdAt: string;
+  amountPaid?: number; // Valor pago pela assinatura
 }
 
 export interface Promotion {

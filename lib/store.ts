@@ -55,7 +55,8 @@ export function useStore() {
           active: c.active,
           startDate: c.start_date,
           endDate: c.end_date,
-          createdAt: c.created_at
+          createdAt: c.created_at,
+          amountPaid: c.amount_paid || 0
         }));
         setClients(mappedClients);
       }
@@ -165,7 +166,7 @@ export function useStore() {
     if (!error) setArtPacks(artPacks.filter(p => p.id !== id));
   };
 
-  const addClient = async (name: string, phone: string, startDate: string, durationMonths: number) => {
+  const addClient = async (name: string, phone: string, startDate: string, durationMonths: number, amountPaid: number = 0) => {
     try {
       const token = Math.random().toString(36).substring(2, 10).toUpperCase();
       const start = new Date(startDate);
@@ -180,7 +181,8 @@ export function useStore() {
           token, 
           active: true,
           start_date: startDate,
-          end_date: end.toISOString()
+          end_date: end.toISOString(),
+          amount_paid: amountPaid
         }])
         .select();
       
